@@ -97,6 +97,86 @@
 }
 
 /* Message Formatting */
+.message-paragraph {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.message-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.message-list {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.message-numbered-list {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.message-list-item {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.message-bold {
+  font-weight: 600;
+  color: #333;
+}
+
+.message.user .message-bold {
+  color: #fff;
+  font-weight: 700;
+}
+
+.message-italic {
+  font-style: italic;
+  color: #555;
+}
+
+.message.user .message-italic {
+  color: #f0f0f0;
+}
+
+.message-code {
+  background: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  color: #d63384;
+}
+
+.message.user .message-code {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.message-heading {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 12px 0 8px 0;
+  color: #333;
+}
+
+.message.user .message-heading {
+  color: #fff;
+}
+
+.message-subheading {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin: 10px 0 6px 0;
+  color: #444;
+}
+
+.message.user .message-subheading {
+  color: #fff;
+}
+
+/* Legacy formatting for backwards compatibility */
 .message-line {
   margin-bottom: 8px;
 }

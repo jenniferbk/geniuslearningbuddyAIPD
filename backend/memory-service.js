@@ -1,30 +1,304 @@
-// Enhanced Memory Service with improved context building and learning
+// Semantic Memory Service with sentence-transformers integration
 const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
+const { pipeline } = require('@xenova/transformers');
+const similarity = require('similarity');
+const _ = require('lodash');
 const { updateMemoryWithPrimerIntelligence } = require('./primer-enhancements');
 
-class EnhancedMemoryService {
+class SemanticMemoryService {
   constructor(dbPath) {
     this.db = new sqlite3.Database(dbPath);
+    this.embedder = null;
+    this.initialized = false;
+    
+    // Educational domain concept seeds for semantic clustering
+    this.educationalSeeds = {
+      'ai_concepts': [
+        'artificial intelligence machine learning deep learning neural networks',
+        'chatgpt large language models generative ai automation',
+        'prompt engineering bias ethics privacy security training data'
+      ],
+      'teaching_concepts': [
+        'classroom management lesson planning curriculum assessment differentiation',
+        'student engagement learning objectives scaffolding feedback collaboration',
+        'critical thinking creativity problem solving formative summative evaluation'
+      ],
+      'learning_states': [
+        'confusion understanding mastery struggle progress achievement',
+        'curiosity interest enthusiasm motivation engagement frustration',
+        'exploration discovery practice application synthesis evaluation'
+      ],
+      'teaching_challenges': [
+        'student behavior classroom disruption time management workload',
+        'technology integration digital divide resource limitations',
+        'parent communication administrative burden professional development'
+      ]
+    };
+    
+    this.initializeEmbedder();
   }
 
-  // Enhanced memory context building with semantic clustering
+  // Initialize the sentence transformer model
+  async initializeEmbedder() {
+    try {
+      console.log('Initializing semantic embedder...');
+      this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+      this.initialized = true;
+      console.log('Semantic embedder ready!');
+    } catch (error) {
+      console.error('Failed to initialize embedder:', error);
+      console.log('Falling back to keyword matching...');
+      this.initialized = false;
+    }
+  }
+
+  // Wait for embedder initialization
+  async ensureInitialized() {
+    if (!this.initialized && this.embedder === null) {
+      await this.initializeEmbedder();
+    }
+    return this.initialized;
+  }
+
+  // Generate embeddings for text
+  async generateEmbedding(text) {
+    if (!await this.ensureInitialized()) {
+      return null;
+    }
+    
+    try {
+      const output = await this.embedder(text);
+      // Convert to regular array and flatten if needed
+      return Array.from(output.data);
+    } catch (error) {
+      console.error('Error generating embedding:', error);
+      return null;
+    }
+  }
+
+  // Calculate semantic similarity between two texts
+  async calculateSimilarity(text1, text2) {
+    const [embedding1, embedding2] = await Promise.all([
+      this.generateEmbedding(text1),
+      this.generateEmbedding(text2)
+    ]);
+    
+    if (!embedding1 || !embedding2) {
+      return 0;
+    }
+    
+    return this.cosineSimilarity(embedding1, embedding2);
+  }
+
+  // Cosine similarity calculation
+  cosineSimilarity(vecA, vecB) {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    
+    for (let i = 0; i < Math.min(vecA.length, vecB.length); i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+    
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  // ENHANCED: Semantic concept extraction with educational domain awareness
+  async extractConceptsWithEmbeddings(text, userContext = {}) {
+    const concepts = [];
+    
+    if (!await this.ensureInitialized()) {
+      // Fallback to keyword matching
+      return this.extractConceptsKeywordFallback(text, userContext);
+    }
+
+    try {
+      const textEmbedding = await this.generateEmbedding(text);
+      if (!textEmbedding) {
+        return this.extractConceptsKeywordFallback(text, userContext);
+      }
+
+      // Semantic matching against educational domain seeds
+      for (const [domain, seedTexts] of Object.entries(this.educationalSeeds)) {
+        for (const seedText of seedTexts) {
+          const similarity = await this.calculateSimilarity(text, seedText);
+          
+          if (similarity > 0.3) { // Semantic similarity threshold
+            // Extract specific concepts from the seed that are semantically similar
+            const specificConcepts = await this.extractSpecificConcepts(text, seedText, similarity);
+            specificConcepts.forEach(concept => {
+              concepts.push({
+                name: concept,
+                type: domain,
+                confidence: similarity,
+                method: 'semantic'
+              });
+            });
+          }
+        }
+      }
+
+      // Emotional and learning state detection with context
+      const emotionalConcepts = await this.detectEmotionalStates(text, userContext);
+      concepts.push(...emotionalConcepts);
+
+      // Remove duplicates and sort by confidence
+      const uniqueConcepts = _.uniqBy(concepts, 'name');
+      return _.orderBy(uniqueConcepts, 'confidence', 'desc');
+
+    } catch (error) {
+      console.error('Error in semantic concept extraction:', error);
+      return this.extractConceptsKeywordFallback(text, userContext);
+    }
+  }
+
+  // Extract specific concepts from semantically similar text
+  async extractSpecificConcepts(inputText, seedText, similarity) {
+    const concepts = [];
+    const inputWords = inputText.toLowerCase().split(/\s+/);
+    const seedWords = seedText.toLowerCase().split(/\s+/);
+    
+    // Find overlapping concepts with semantic boosting
+    const commonWords = _.intersection(inputWords, seedWords);
+    
+    // Multi-word concept detection
+    const multiWordConcepts = [
+      'machine learning', 'artificial intelligence', 'lesson planning', 
+      'classroom management', 'student engagement', 'critical thinking',
+      'prompt engineering', 'large language model', 'formative assessment'
+    ];
+    
+    multiWordConcepts.forEach(concept => {
+      if (inputText.toLowerCase().includes(concept)) {
+        concepts.push(concept);
+      }
+    });
+    
+    // Add single word concepts that appear in both
+    commonWords.forEach(word => {
+      if (word.length > 3 && !['that', 'with', 'from', 'they', 'this', 'have'].includes(word)) {
+        concepts.push(word);
+      }
+    });
+    
+    return concepts;
+  }
+
+  // Enhanced emotional state detection
+  async detectEmotionalStates(text, userContext) {
+    const emotions = [];
+    const lowerText = text.toLowerCase();
+    
+    // Semantic emotion patterns with educational context
+    const emotionPatterns = [
+      {
+        indicators: ['worried', 'concerned', 'afraid', 'anxious', 'nervous'],
+        concept: 'anxiety about AI integration',
+        type: 'emotional_state',
+        confidence: 0.8
+      },
+      {
+        indicators: ['excited', 'enthusiastic', 'interested', 'curious', 'eager'],
+        concept: 'enthusiasm for AI learning',
+        type: 'emotional_state', 
+        confidence: 0.8
+      },
+      {
+        indicators: ['confused', 'unclear', "don't understand", 'lost', 'overwhelmed'],
+        concept: 'conceptual confusion',
+        type: 'learning_state',
+        confidence: 0.9
+      },
+      {
+        indicators: ['confident', 'comfortable', 'understand', 'clear', 'makes sense'],
+        concept: 'conceptual mastery',
+        type: 'learning_state',
+        confidence: 0.8
+      },
+      {
+        indicators: ['struggling', 'difficult', 'hard', 'challenging', 'frustrating'],
+        concept: 'learning challenge',
+        type: 'learning_state',
+        confidence: 0.7
+      }
+    ];
+    
+    emotionPatterns.forEach(pattern => {
+      const found = pattern.indicators.some(indicator => lowerText.includes(indicator));
+      if (found) {
+        emotions.push({
+          name: pattern.concept,
+          type: pattern.type,
+          confidence: pattern.confidence,
+          method: 'semantic_emotional'
+        });
+      }
+    });
+    
+    return emotions;
+  }
+
+  // Fallback keyword extraction (maintains backwards compatibility)
+  extractConceptsKeywordFallback(text, userContext = {}) {
+    const concepts = [];
+    const lowerText = text.toLowerCase();
+    
+    // Core educational concepts
+    const aiConcepts = [
+      'artificial intelligence', 'ai', 'machine learning', 'prompt engineering',
+      'chatgpt', 'large language model', 'llm', 'neural network', 'training data',
+      'bias', 'ethics', 'automation', 'generative ai', 'natural language processing'
+    ];
+    
+    const teachingConcepts = [
+      'classroom management', 'lesson planning', 'assessment', 'differentiation',
+      'student engagement', 'learning objectives', 'curriculum', 'standards',
+      'scaffolding', 'feedback', 'collaboration', 'critical thinking'
+    ];
+    
+    // Extract concepts with keyword matching
+    [...aiConcepts, ...teachingConcepts].forEach(concept => {
+      if (lowerText.includes(concept)) {
+        concepts.push({
+          name: concept,
+          type: aiConcepts.includes(concept) ? 'ai_concept' : 'teaching_concept',
+          confidence: 0.7,
+          method: 'keyword'
+        });
+      }
+    });
+    
+    return concepts;
+  }
+
+  // ENHANCED: Semantic memory context building
   async buildMemoryContext(userId, currentTopic = null) {
     try {
       const entities = await this.getEntities(userId);
       const relations = await this.getRelations(userId);
       const recentConversations = await this.getRecentConversations(userId, 10);
 
-      // Build different types of memory context
+      // Semantic clustering of memory content
+      const semanticClusters = await this.buildSemanticClusters(entities, currentTopic);
       const teachingContext = this.buildTeachingContext(entities, relations);
-      const learningProgress = this.buildLearningProgressContext(entities, relations);
+      const learningProgress = await this.buildSemanticLearningProgress(entities, relations);
       const conversationPatterns = this.extractConversationPatterns(recentConversations);
-      const topicSpecificMemory = currentTopic ? 
-        this.buildTopicSpecificContext(entities, relations, currentTopic) : null;
 
-      let context = `## Memory Context for ${userId}\n\n`;
+      let context = `## Enhanced Memory Context for ${userId}\n\n`;
       
-      // Teaching Profile & Context
+      // Semantic topic clusters
+      if (semanticClusters.length > 0) {
+        context += "### Key Learning Areas:\n";
+        semanticClusters.forEach(cluster => {
+          context += `- ${cluster.topic}: ${cluster.concepts.join(', ')}\n`;
+        });
+        context += "\n";
+      }
+
+      // Teaching context
       if (teachingContext.length > 0) {
         context += "### Teaching Context:\n";
         teachingContext.forEach(item => {
@@ -33,7 +307,7 @@ class EnhancedMemoryService {
         context += "\n";
       }
 
-      // Learning Journey & Progress
+      // Semantic learning progression
       if (learningProgress.length > 0) {
         context += "### Learning Journey:\n";
         learningProgress.forEach(item => {
@@ -42,7 +316,7 @@ class EnhancedMemoryService {
         context += "\n";
       }
 
-      // Conversation Patterns & Preferences
+      // Communication patterns
       if (conversationPatterns.length > 0) {
         context += "### Communication Patterns:\n";
         conversationPatterns.forEach(pattern => {
@@ -51,34 +325,266 @@ class EnhancedMemoryService {
         context += "\n";
       }
 
-      // Current Topic Memory
-      if (topicSpecificMemory && topicSpecificMemory.length > 0) {
-        context += `### Memory about "${currentTopic}":\n`;
-        topicSpecificMemory.forEach(item => {
-          context += `- ${item}\n`;
-        });
-        context += "\n";
-      }
-
-      // Recent Context Summary
-      const recentContext = this.buildRecentContextSummary(recentConversations);
-      if (recentContext) {
-        context += "### Recent Conversation Context:\n";
-        context += `${recentContext}\n\n`;
-      }
-
       return context || "This is our first meaningful conversation.";
     } catch (error) {
-      console.error('Error building enhanced memory context:', error);
+      console.error('Error building semantic memory context:', error);
       return "Starting fresh conversation.";
     }
+  }
+
+  // Build semantic clusters of related concepts
+  async buildSemanticClusters(entities, currentTopic = null) {
+    const clusters = [];
+    
+    if (!await this.ensureInitialized()) {
+      return this.buildBasicClusters(entities);
+    }
+
+    try {
+      // Group entities by semantic similarity
+      const conceptEntities = entities.filter(e => e.entity_type === 'concept' || e.entity_type === 'ai_concept' || e.entity_type === 'teaching_concept');
+      
+      const grouped = await this.groupBySemantic(conceptEntities);
+      
+      grouped.forEach(group => {
+        if (group.concepts.length > 1) {
+          clusters.push({
+            topic: group.mainTopic,
+            concepts: group.concepts.slice(0, 5), // Limit for readability
+            strength: group.avgSimilarity
+          });
+        }
+      });
+
+      return _.orderBy(clusters, 'strength', 'desc');
+    } catch (error) {
+      console.error('Error building semantic clusters:', error);
+      return this.buildBasicClusters(entities);
+    }
+  }
+
+  // Group entities by semantic similarity
+  async groupBySemantic(entities) {
+    const groups = [];
+    const processed = new Set();
+
+    for (const entity of entities) {
+      if (processed.has(entity.entity_name)) continue;
+
+      const group = {
+        mainTopic: entity.entity_name,
+        concepts: [entity.entity_name],
+        similarities: []
+      };
+
+      for (const other of entities) {
+        if (other.entity_name === entity.entity_name || processed.has(other.entity_name)) continue;
+
+        const similarity = await this.calculateSimilarity(entity.entity_name, other.entity_name);
+        
+        if (similarity > 0.4) { // Clustering threshold
+          group.concepts.push(other.entity_name);
+          group.similarities.push(similarity);
+          processed.add(other.entity_name);
+        }
+      }
+
+      if (group.concepts.length > 1) {
+        group.avgSimilarity = group.similarities.reduce((a, b) => a + b, 0) / group.similarities.length;
+        groups.push(group);
+      }
+
+      processed.add(entity.entity_name);
+    }
+
+    return groups;
+  }
+
+  // Fallback basic clustering
+  buildBasicClusters(entities) {
+    const clusters = [];
+    const grouped = _.groupBy(entities, 'entity_type');
+    
+    Object.entries(grouped).forEach(([type, typeEntities]) => {
+      if (typeEntities.length > 1) {
+        clusters.push({
+          topic: type.replace('_', ' '),
+          concepts: typeEntities.map(e => e.entity_name).slice(0, 5),
+          strength: 0.5
+        });
+      }
+    });
+    
+    return clusters;
+  }
+
+  // Enhanced learning progress with semantic understanding
+  async buildSemanticLearningProgress(entities, relations) {
+    const progress = [];
+    
+    // Semantic analysis of learning states
+    const learningEntities = entities.filter(entity => 
+      entity.entity_type === 'concept' || 
+      entity.entity_type === 'learning_state' ||
+      entity.entity_type === 'ai_concept' ||
+      entity.entity_type === 'teaching_concept'
+    );
+
+    // Group by mastery level with semantic understanding
+    const masteredConcepts = [];
+    const strugglingConcepts = [];
+    const exploringConcepts = [];
+
+    // Analyze relations for learning progression
+    relations.forEach(relation => {
+      if (relation.relation_type === 'understands' && relation.strength > 0.7) {
+        masteredConcepts.push(relation.to_entity);
+      } else if (relation.relation_type === 'struggles_with' && relation.strength > 0.6) {
+        strugglingConcepts.push(relation.to_entity);
+      } else if (relation.relation_type === 'exploring') {
+        exploringConcepts.push(relation.to_entity);
+      }
+    });
+
+    // Build semantic progress narrative
+    if (masteredConcepts.length > 0) {
+      progress.push(`Demonstrating confidence with: ${masteredConcepts.slice(0, 5).join(', ')}`);
+    }
+    if (strugglingConcepts.length > 0) {
+      progress.push(`Working through challenges with: ${strugglingConcepts.slice(0, 3).join(', ')}`);
+    }
+    if (exploringConcepts.length > 0) {
+      progress.push(`Actively exploring: ${exploringConcepts.slice(0, 3).join(', ')}`);
+    }
+
+    return progress;
+  }
+
+  // ENHANCED: Memory updates with semantic intelligence
+  async updateFromConversation(userId, userMessage, aiResponse, currentTopic, userProfile = {}) {
+    try {
+      // Use Primer-like intelligence first
+      const primerUpdates = await updateMemoryWithPrimerIntelligence(
+        this, userId, userMessage, aiResponse, currentTopic, userProfile
+      );
+      
+      if (primerUpdates.length > 0) {
+        return primerUpdates;
+      }
+      
+      // Semantic memory updates
+      const updates = [];
+      const concepts = await this.extractConceptsWithEmbeddings(userMessage + ' ' + aiResponse, userProfile);
+      
+      for (const concept of concepts) {
+        const observation = `Discussed: ${concept.name} (${concept.method}, confidence: ${concept.confidence.toFixed(2)}) on ${new Date().toLocaleDateString()}`;
+        await this.addObservations(userId, concept.name, [observation]);
+        updates.push(`Learning about: ${concept.name}`);
+        
+        // Create semantic relationships
+        await this.createSemanticRelationships(userId, concept, concepts, userMessage + ' ' + aiResponse);
+      }
+
+      return updates;
+    } catch (error) {
+      console.error('Error updating semantic memory:', error);
+      return ['Memory system processing this interaction'];
+    }
+  }
+
+  // Create relationships based on semantic similarity
+  async createSemanticRelationships(userId, mainConcept, allConcepts, context) {
+    try {
+      for (const otherConcept of allConcepts) {
+        if (otherConcept.name === mainConcept.name) continue;
+        
+        const similarity = await this.calculateSimilarity(mainConcept.name, otherConcept.name);
+        
+        if (similarity > 0.5) {
+          await this.createRelation(
+            userId, 
+            mainConcept.name, 
+            otherConcept.name, 
+            'semantically_related', 
+            similarity
+          );
+        }
+      }
+      
+      // Analyze learning progression semantically
+      const progressions = await this.analyzeSemanticProgression(context, mainConcept.name);
+      for (const progression of progressions) {
+        await this.createRelation(
+          userId,
+          'user', 
+          progression.concept,
+          progression.relation,
+          progression.strength
+        );
+      }
+    } catch (error) {
+      console.error('Error creating semantic relationships:', error);
+    }
+  }
+
+  // Semantic progression analysis
+  async analyzeSemanticProgression(text, concept) {
+    const progressions = [];
+    const lowerText = text.toLowerCase();
+    
+    // Enhanced progression patterns with semantic understanding
+    const progressPatterns = [
+      { 
+        indicators: ['now i understand', 'makes sense now', 'i get it', 'clear now', 'that explains'],
+        relation: 'understands', 
+        strength: 0.9, 
+        description: 'achieved understanding' 
+      },
+      { 
+        indicators: ['still confused', "still don't get", 'still unclear', 'not sure', 'lost'],
+        relation: 'struggles_with', 
+        strength: 0.8, 
+        description: 'continued confusion' 
+      },
+      { 
+        indicators: ['want to learn more', 'tell me more', 'interested in', 'curious about'],
+        relation: 'interested_in', 
+        strength: 0.7, 
+        description: 'showing interest' 
+      },
+      { 
+        indicators: ['this helps', 'useful', 'good explanation', "that's helpful"],
+        relation: 'finding_helpful', 
+        strength: 0.8, 
+        description: 'positive feedback' 
+      },
+      { 
+        indicators: ['tried this', 'implemented', 'used in class', 'applied', 'put into practice'],
+        relation: 'applied', 
+        strength: 0.95, 
+        description: 'practical application' 
+      }
+    ];
+
+    progressPatterns.forEach(pattern => {
+      const found = pattern.indicators.some(indicator => lowerText.includes(indicator));
+      if (found) {
+        progressions.push({
+          concept: concept,
+          relation: pattern.relation,
+          strength: pattern.strength,
+          description: pattern.description
+        });
+      }
+    });
+
+    return progressions;
   }
 
   // Build teaching-specific context
   buildTeachingContext(entities, relations) {
     const teachingContext = [];
     
-    // Extract teaching-related entities
     const teachingEntities = entities.filter(entity => 
       entity.entity_type === 'teaching_challenge' ||
       entity.entity_type === 'classroom_context' ||
@@ -94,52 +600,12 @@ class EnhancedMemoryService {
     return teachingContext;
   }
 
-  // Build learning progress context
-  buildLearningProgressContext(entities, relations) {
-    const progressContext = [];
-    
-    // Find learning-related entities and relationships
-    const learningEntities = entities.filter(entity => 
-      entity.entity_type === 'concept' ||
-      entity.entity_type === 'skill' ||
-      entity.entity_type === 'understanding'
-    );
-
-    // Group by mastery level using relations
-    const masteredConcepts = [];
-    const strugglingConcepts = [];
-    const exploringConcepts = [];
-
-    relations.forEach(relation => {
-      if (relation.relation_type === 'understands' && relation.strength > 0.7) {
-        masteredConcepts.push(relation.to_entity);
-      } else if (relation.relation_type === 'struggles_with' && relation.strength > 0.6) {
-        strugglingConcepts.push(relation.to_entity);
-      } else if (relation.relation_type === 'exploring') {
-        exploringConcepts.push(relation.to_entity);
-      }
-    });
-
-    if (masteredConcepts.length > 0) {
-      progressContext.push(`Confident with: ${masteredConcepts.slice(0, 5).join(', ')}`);
-    }
-    if (strugglingConcepts.length > 0) {
-      progressContext.push(`Needs support with: ${strugglingConcepts.slice(0, 3).join(', ')}`);
-    }
-    if (exploringConcepts.length > 0) {
-      progressContext.push(`Currently exploring: ${exploringConcepts.slice(0, 3).join(', ')}`);
-    }
-
-    return progressContext;
-  }
-
   // Extract conversation patterns for personalization
   extractConversationPatterns(conversations) {
     const patterns = [];
     
     if (conversations.length < 3) return patterns;
 
-    // Analyze message lengths, question patterns, engagement style
     let totalMessages = 0;
     let questionCount = 0;
     let shortMessageCount = 0;
@@ -175,212 +641,7 @@ class EnhancedMemoryService {
     return patterns;
   }
 
-  // Build topic-specific memory
-  buildTopicSpecificContext(entities, relations, topic) {
-    const topicMemory = [];
-    
-    // Find entities related to current topic
-    const relevantEntities = entities.filter(entity => 
-      entity.entity_name.toLowerCase().includes(topic.toLowerCase()) ||
-      entity.observations.some(obs => 
-        obs.toLowerCase().includes(topic.toLowerCase())
-      )
-    );
-
-    relevantEntities.forEach(entity => {
-      const contextualObs = entity.observations.filter(obs => 
-        obs.toLowerCase().includes(topic.toLowerCase())
-      );
-      if (contextualObs.length > 0) {
-        topicMemory.push(`${entity.entity_name}: ${contextualObs.slice(-2).join('; ')}`);
-      }
-    });
-
-    return topicMemory;
-  }
-
-  // Build recent context summary
-  buildRecentContextSummary(conversations) {
-    if (conversations.length === 0) return null;
-
-    const recentConv = conversations[0];
-    const messages = Array.isArray(recentConv.messages) ? recentConv.messages : 
-      (typeof recentConv.messages === 'string' ? JSON.parse(recentConv.messages || '[]') : []);
-    
-    const lastUserMessage = messages.filter(msg => msg.role === 'user').slice(-1)[0];
-    const lastAIMessage = messages.filter(msg => msg.role === 'assistant').slice(-1)[0];
-
-    if (lastUserMessage && lastAIMessage) {
-      return `Last discussion: User asked about "${lastUserMessage.content.substring(0, 100)}..." and we covered ${lastAIMessage.content.substring(0, 150)}...`;
-    }
-
-    return null;
-  }
-
-  // Enhanced concept extraction using semantic analysis
-  extractConcepts(text, userContext = {}) {
-    const concepts = [];
-    const lowerText = text.toLowerCase();
-    
-    // AI & Technology concepts
-    const aiConcepts = [
-      'artificial intelligence', 'ai', 'machine learning', 'prompt engineering', 
-      'chatgpt', 'large language model', 'llm', 'neural network', 'training data',
-      'bias', 'ethics', 'automation', 'generative ai', 'natural language processing',
-      'deep learning', 'algorithm', 'data', 'privacy', 'security'
-    ];
-    
-    // Teaching & Pedagogy concepts
-    const teachingConcepts = [
-      'classroom management', 'lesson planning', 'assessment', 'differentiation',
-      'student engagement', 'learning objectives', 'curriculum', 'standards',
-      'formative assessment', 'summative assessment', 'scaffolding', 'feedback',
-      'collaboration', 'critical thinking', 'creativity', 'problem solving'
-    ];
-    
-    // Grade level specific concerns
-    const gradeConcepts = {
-      'elementary': ['play-based learning', 'hands-on activities', 'visual learning'],
-      'middle school': ['project-based learning', 'peer collaboration', 'identity development'],
-      'high school': ['college prep', 'career readiness', 'independent learning']
-    };
-
-    // Extract AI concepts
-    aiConcepts.forEach(concept => {
-      if (lowerText.includes(concept)) {
-        concepts.push({ name: concept, type: 'ai_concept', confidence: 0.9 });
-      }
-    });
-
-    // Extract teaching concepts  
-    teachingConcepts.forEach(concept => {
-      if (lowerText.includes(concept)) {
-        concepts.push({ name: concept, type: 'teaching_concept', confidence: 0.8 });
-      }
-    });
-
-    // Extract grade-specific concepts
-    if (userContext.gradeLevel && gradeConcepts[userContext.gradeLevel]) {
-      gradeConcepts[userContext.gradeLevel].forEach(concept => {
-        if (lowerText.includes(concept)) {
-          concepts.push({ name: concept, type: 'grade_specific', confidence: 0.7 });
-        }
-      });
-    }
-
-    // Extract questions and concerns (emotional/learning state)
-    if (lowerText.includes('worried') || lowerText.includes('concerned') || lowerText.includes('afraid')) {
-      concepts.push({ name: 'concerns about AI', type: 'emotional_state', confidence: 0.8 });
-    }
-    if (lowerText.includes('excited') || lowerText.includes('interested') || lowerText.includes('curious')) {
-      concepts.push({ name: 'enthusiasm for AI', type: 'emotional_state', confidence: 0.8 });
-    }
-    if (lowerText.includes('confused') || lowerText.includes("don't understand")) {
-      concepts.push({ name: 'confusion', type: 'learning_state', confidence: 0.9 });
-    }
-
-    return concepts;
-  }
-
-  // Enhanced memory updates using Primer-like intelligence
-  async updateFromConversation(userId, userMessage, aiResponse, currentTopic, userProfile = {}) {
-    try {
-      // Use Primer-like intelligence for memory updates
-      const primerUpdates = await updateMemoryWithPrimerIntelligence(
-        this, userId, userMessage, aiResponse, currentTopic, userProfile
-      );
-      
-      // Return Primer updates if successful, otherwise fallback to basic
-      if (primerUpdates.length > 0) {
-        return primerUpdates;
-      }
-      
-      // Basic fallback memory updates
-      const updates = [];
-      const concepts = this.extractConcepts(userMessage + ' ' + aiResponse, userProfile);
-      
-      for (const concept of concepts) {
-        const observation = `Discussed: ${concept.name} on ${new Date().toLocaleDateString()}`;
-        await this.addObservations(userId, concept.name, [observation]);
-        updates.push(`Learning about: ${concept.name}`);
-      }
-
-      return updates;
-    } catch (error) {
-      console.error('Error updating enhanced memory:', error);
-      return ['Memory system processing this interaction'];
-    }
-  }
-
-  // Analyze learning progression from conversation
-  analyzeProgressionFromText(userMessage, aiResponse) {
-    const progressions = [];
-    const combined = (userMessage + ' ' + aiResponse).toLowerCase();
-    
-    // Advanced progression indicators
-    const progressPatterns = [
-      { pattern: /(now i understand|makes sense now|i get it now)/, relation: 'understands', strength: 0.8, description: 'achieved understanding' },
-      { pattern: /(still confused|still don't get|still unclear)/, relation: 'struggles_with', strength: 0.7, description: 'continued struggle' },
-      { pattern: /(want to learn more|tell me more|can you explain)/, relation: 'interested_in', strength: 0.6, description: 'showing interest' },
-      { pattern: /(this is helpful|that helps|good explanation)/, relation: 'finding_helpful', strength: 0.7, description: 'positive feedback' },
-      { pattern: /(tried this|implemented|used in class)/, relation: 'applied', strength: 0.9, description: 'practical application' }
-    ];
-
-    progressPatterns.forEach(pattern => {
-      if (pattern.pattern.test(combined)) {
-        // Extract the concept being discussed (simplified - could be enhanced with NLP)
-        const words = combined.split(' ');
-        const conceptIndex = words.findIndex(word => 
-          ['ai', 'chatgpt', 'prompt', 'machine learning', 'algorithm'].includes(word)
-        );
-        
-        if (conceptIndex !== -1) {
-          progressions.push({
-            concept: words[conceptIndex],
-            relation: pattern.relation,
-            strength: pattern.strength,
-            description: pattern.description
-          });
-        }
-      }
-    });
-
-    return progressions;
-  }
-
-  // Extract teaching context from conversation
-  extractTeachingContext(message, userProfile) {
-    const contexts = [];
-    const lowerMessage = message.toLowerCase();
-    
-    // Classroom challenges
-    if (lowerMessage.includes('my students') || lowerMessage.includes('in my class')) {
-      if (lowerMessage.includes('struggle') || lowerMessage.includes('difficult')) {
-        contexts.push({
-          name: 'student_learning_challenges',
-          type: 'teaching_challenge',
-          observation: `Mentioned student challenges: ${message.substring(0, 100)}...`
-        });
-      }
-    }
-
-    // Subject-specific context
-    if (userProfile.subjects && Array.isArray(userProfile.subjects)) {
-      userProfile.subjects.forEach(subject => {
-        if (lowerMessage.includes(subject.toLowerCase())) {
-          contexts.push({
-            name: `${subject}_teaching`,
-            type: 'subject_context',
-            observation: `Discussed ${subject} teaching: ${message.substring(0, 100)}...`
-          });
-        }
-      });
-    }
-
-    return contexts;
-  }
-
-  // All existing methods remain the same...
+  // Database methods
   async createEntity(userId, entityName, entityType, observations = []) {
     return new Promise((resolve, reject) => {
       const entityId = uuidv4();
@@ -539,4 +800,4 @@ class EnhancedMemoryService {
   }
 }
 
-module.exports = EnhancedMemoryService;
+module.exports = SemanticMemoryService;

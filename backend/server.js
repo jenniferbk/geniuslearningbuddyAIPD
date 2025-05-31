@@ -8,8 +8,8 @@ const axios = require('axios');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// UPDATED: Import the enhanced memory service instead of basic one
-const EnhancedMemoryService = require('./memory-service');
+// UPDATED: Import the semantic memory service for embeddings-based concept extraction
+const SemanticMemoryService = require('./memory-service');
 const { basicAILiteracyModule } = require('./learning-modules');
 const { buildEnhancedSystemPrompt } = require('./enhanced-prompts');
 
@@ -23,8 +23,8 @@ app.use(express.json());
 // Initialize database and services
 const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
 const db = new sqlite3.Database(dbPath);
-// UPDATED: Use enhanced memory service
-const memoryService = new EnhancedMemoryService(dbPath);
+// UPDATED: Use semantic memory service with sentence-transformers
+const memoryService = new SemanticMemoryService(dbPath);
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {

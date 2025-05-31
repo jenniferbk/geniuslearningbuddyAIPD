@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useLearningBuddy } from '../context/LearningBuddyContext';
 import './ChatInterface.css';
 
@@ -76,32 +77,26 @@ You're ${completion}% through the Basic AI Literacy module. We were exploring "$
   };
   
   const formatMessage = (content) => {
-    // Simple formatting for better readability
-    return content
-      .split('\n')
-      .map((line, index) => {
-        if (line.trim() === '') return <br key={index} />;
-        
-        // Handle bullet points
-        if (line.trim().startsWith('- ')) {
-          return (
-            <div key={index} className="message-bullet">
-              {line.trim().substring(2)}
-            </div>
-          );
-        }
-        
-        // Handle numbered lists
-        if (/^\d+\./.test(line.trim())) {
-          return (
-            <div key={index} className="message-numbered">
-              {line.trim()}
-            </div>
-          );
-        }
-        
-        return <div key={index} className="message-line">{line}</div>;
-      });
+    // Use ReactMarkdown for proper markdown rendering
+    return (
+      <ReactMarkdown
+        components={{
+          // Custom styling for different elements
+          p: ({children}) => <div className="message-paragraph">{children}</div>,
+          ul: ({children}) => <ul className="message-list">{children}</ul>,
+          ol: ({children}) => <ol className="message-numbered-list">{children}</ol>,
+          li: ({children}) => <li className="message-list-item">{children}</li>,
+          strong: ({children}) => <strong className="message-bold">{children}</strong>,
+          em: ({children}) => <em className="message-italic">{children}</em>,
+          code: ({children}) => <code className="message-code">{children}</code>,
+          h1: ({children}) => <h3 className="message-heading">{children}</h3>,
+          h2: ({children}) => <h4 className="message-subheading">{children}</h4>,
+          h3: ({children}) => <h5 className="message-subheading">{children}</h5>
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
   };
   
   const getStarterQuestions = () => [
