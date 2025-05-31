@@ -13,6 +13,9 @@ const SemanticMemoryService = require('./memory-service');
 const { basicAILiteracyModule } = require('./learning-modules');
 const { buildEnhancedSystemPrompt } = require('./enhanced-prompts');
 
+// CMS Integration
+const { router: cmsRouter, initializeCMS } = require('./cms-routes');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -20,11 +23,17 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded files statically
+app.use('/api/cms/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Initialize database and services
 const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
 const db = new sqlite3.Database(dbPath);
 // UPDATED: Use semantic memory service with sentence-transformers
 const memoryService = new SemanticMemoryService(dbPath);
+
+// Initialize CMS service
+initializeCMS(db);
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -585,6 +594,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// === CMS ROUTES ===
+
+// Mount CMS routes
+app.use('/api/cms', authenticateToken, cmsRouter);
+
 // Enhanced debug endpoint for troubleshooting
 app.get('/api/debug/conversations/:userId', authenticateToken, (req, res) => {
   const { userId } = req.params;
@@ -628,7 +642,9 @@ app.listen(PORT, () => {
   console.log(`🚀 AI Literacy Buddy backend running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🧠 Enhanced Memory Service: Active`);
+  console.log(`📚 Content Management System: Active`);
   console.log(`🔍 Debug endpoint: http://localhost:${PORT}/api/debug/memory/YOUR_USER_ID`);
+  console.log(`📝 CMS endpoint: http://localhost:${PORT}/api/cms/courses`);
   
   if (!process.env.OPENAI_API_KEY) {
     console.warn('⚠️  WARNING: OPENAI_API_KEY not configured. Please add it to your .env file.');

@@ -5,6 +5,7 @@ import ChatInterface from './components/ChatInterface';
 import ProgressDashboard from './components/ProgressDashboard';
 import AuthForm from './components/AuthForm';
 import ModulesView from './components/ModulesView';
+import CourseCreator from './components/CourseCreator';
 import './App.css';
 
 // Main app content (inside the provider)
@@ -52,6 +53,8 @@ function AppContent() {
         return <ProgressDashboard />;
       case 'modules':
         return <ModulesView />;
+      case 'courses':
+        return <CourseCreator />;
       default:
         return <ChatInterface />;
     }

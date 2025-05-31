@@ -18,7 +18,8 @@ function Navigation() {
   const navigationItems = [
     { id: 'chat', label: 'Chat', icon: '💬', description: 'Talk with your Learning Buddy' },
     { id: 'progress', label: 'Progress', icon: '📊', description: 'View your learning journey' },
-    { id: 'modules', label: 'Modules', icon: '📚', description: 'Explore learning content' }
+    { id: 'modules', label: 'Modules', icon: '📚', description: 'Explore learning content' },
+    { id: 'courses', label: 'Create Courses', icon: '🎓', description: 'Create and manage course content' }
   ];
 
   return (
