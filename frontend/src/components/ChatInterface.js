@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { useLearningBuddy } from '../context/LearningBuddyContext';
 import './ChatInterface.css';
 
-function ChatInterface() {
+function ChatInterface({ contentContext }) {
   const {
     conversation,
     isTyping,
@@ -15,6 +15,7 @@ function ChatInterface() {
   
   const [inputMessage, setInputMessage] = useState('');
   const [isFirstVisit, setIsFirstVisit] = useState(true);
+  const [lastSuggestion, setLastSuggestion] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   
@@ -43,12 +44,28 @@ function ChatInterface() {
       inputRef.current.focus();
     }
   }, []);
+
+  // Handle AI suggestions for timestamp jumps
+  useEffect(() => {
+    // Listen for AI suggestions from chat responses
+    if (window.lastAiSuggestion && window.lastAiSuggestion !== lastSuggestion) {
+      setLastSuggestion(window.lastAiSuggestion);
+    }
+  }, [conversation]);
   
-  const handleSend = () => {
+  const handleSend = async () => {
     if (inputMessage.trim()) {
-      sendMessage(inputMessage);
+      // Include content context in the message
+      const response = await sendMessage(inputMessage, contentContext);
       setInputMessage('');
       setIsFirstVisit(false);
+      
+      // Handle AI suggestions
+      if (response?.suggestion?.action === 'jump_to_timestamp') {
+        if (window.videoPlayerActions?.jumpToTimestamp) {
+          window.videoPlayerActions.jumpToTimestamp(response.suggestion.timestamp);
+        }
+      }
     }
   };
   
@@ -64,6 +81,12 @@ function ChatInterface() {
     
     const progress = learningProgress.basic_ai_literacy;
     const completion = Math.round(progress.completion * 100);
+    
+    if (contentContext) {
+      return `Hi ${user.name}! 👋 I'm your AI Learning Buddy, and I can see you're viewing "${contentContext.chunk?.topic || 'course content'}". 
+
+I'll watch along with you and help explain concepts, answer questions, and make connections to your teaching practice. What would you like to know about this content?`;
+    }
     
     if (completion === 0) {
       return `Hi ${user.name}! 👋 I'm your AI Learning Buddy, here to help you develop AI literacy for your ${user.gradeLevel} classroom. 
@@ -99,26 +122,63 @@ You're ${completion}% through the Basic AI Literacy module. We were exploring "$
     );
   };
   
-  const getStarterQuestions = () => [
-    "What exactly is artificial intelligence?",
-    "How could AI help me in my classroom?",
-    "What should I be concerned about with AI?",
-    "Can you show me some examples of AI tools for teachers?"
-  ];
+  const getStarterQuestions = () => {
+    if (contentContext && contentContext.chunk) {
+      // Content-aware starter questions
+      return [
+        `Can you explain more about ${contentContext.chunk.topic}?`,
+        "How does this apply to my classroom?",
+        "What should I remember from this section?",
+        "Can you give me an example of this concept?"
+      ];
+    }
+    
+    // Default starter questions
+    return [
+      "What exactly is artificial intelligence?",
+      "How could AI help me in my classroom?",
+      "What should I be concerned about with AI?",
+      "Can you show me some examples of AI tools for teachers?"
+    ];
+  };
+
+  const formatTimestamp = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
   
   return (
     <div className="chat-interface">
       <div className="chat-header">
         <div className="buddy-avatar">🤖</div>
         <div className="header-info">
-          <h2>AI Learning Buddy</h2>
+          <h2>AI Buddy</h2>
           <div className="module-info">
             Basic AI Literacy • {Math.round(learningProgress.basic_ai_literacy.completion * 100)}% Complete
+            {contentContext && (
+              <div className="content-awareness-indicator">
+                🎬 Watching: {contentContext.chunk?.topic || 'Content'} 
+                {contentContext.timestamp && (
+                  <span className="timestamp">({formatTimestamp(contentContext.timestamp)})</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
       
       <div className="chat-messages">
+        {/* Content context notification */}
+        {contentContext && (
+          <div className="content-context-notification">
+            <div className="context-icon">🎯</div>
+            <div className="context-message">
+              I'm now watching the content with you and can reference what you're viewing in our conversation.
+            </div>
+          </div>
+        )}
+
         {/* Welcome message for new users */}
         {isFirstVisit && conversation.length === 0 && (
           <div className="message assistant welcome-message">
@@ -152,6 +212,17 @@ You're ${completion}% through the Basic AI Literacy module. We were exploring "$
           <div key={index} className={`message ${message.role}`}>
             <div className="message-content">
               {formatMessage(message.content)}
+              {/* Show content reference if available */}
+              {message.contentReference && (
+                <div className="content-reference">
+                  🎯 Referenced: {message.contentReference.referencedContent}
+                  {message.contentReference.timestamp && (
+                    <span className="ref-timestamp">
+                      ({formatTimestamp(message.contentReference.timestamp)})
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <div className="message-timestamp">
               {new Date(message.timestamp).toLocaleTimeString([], { 
@@ -184,7 +255,11 @@ You're ${completion}% through the Basic AI Literacy module. We were exploring "$
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything about AI in education..."
+            placeholder={
+              contentContext 
+                ? "Ask me about what you're watching..." 
+                : "Ask me anything about AI in education..."
+            }
             rows={1}
             className="chat-input"
             disabled={isTyping}
@@ -200,6 +275,11 @@ You're ${completion}% through the Basic AI Literacy module. We were exploring "$
         
         <div className="input-help">
           Press Enter to send • Shift+Enter for new line
+          {contentContext && (
+            <span className="content-help">
+              • AI can reference the video content you're watching
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -1,0 +1,237 @@
+// test-youtube-api.html - Standalone test for YouTube API timing
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YouTube API Timer Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #player {
+            margin: 20px 0;
+        }
+        .status {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .log {
+            background: #e0e0e0;
+            padding: 10px;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>YouTube API Timer Test</h1>
+    
+    <div id="player"></div>
+    
+    <div class="status">
+        <h2>Status</h2>
+        <div>Player State: <span id="playerState">Not initialized</span></div>
+        <div>Current Time: <span id="currentTime">0:00</span></div>
+        <div>Duration: <span id="duration">0:00</span></div>
+        <div>Polling Active: <span id="pollingActive">No</span></div>
+    </div>
+    
+    <div>
+        <button onclick="startPolling()">Start Polling</button>
+        <button onclick="stopPolling()">Stop Polling</button>
+        <button onclick="testMethods()">Test Methods</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+    
+    <div class="status">
+        <h2>Logs</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        let player;
+        let pollingInterval;
+        let isPolling = false;
+
+        function log(message) {
+            const logsDiv = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log';
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.insertBefore(logEntry, logsDiv.firstChild);
+            
+            // Keep only last 20 logs
+            while (logsDiv.children.length > 20) {
+                logsDiv.removeChild(logsDiv.lastChild);
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateStatus() {
+            if (!player || typeof player.getPlayerState !== 'function') {
+                return;
+            }
+
+            try {
+                const state = player.getPlayerState();
+                const time = player.getCurrentTime();
+                const duration = player.getDuration();
+
+                document.getElementById('playerState').textContent = 
+                    state === 1 ? 'Playing' : 
+                    state === 2 ? 'Paused' : 
+                    state === 0 ? 'Ended' : 
+                    state === -1 ? 'Unstarted' : 
+                    'Unknown';
+                
+                document.getElementById('currentTime').textContent = formatTime(time);
+                document.getElementById('duration').textContent = formatTime(duration);
+                
+                return { state, time, duration };
+            } catch (error) {
+                log(`Error updating status: ${error.message}`);
+                return null;
+            }
+        }
+
+        function startPolling() {
+            if (isPolling) {
+                log('Polling already active');
+                return;
+            }
+
+            log('Starting polling...');
+            isPolling = true;
+            document.getElementById('pollingActive').textContent = 'Yes';
+
+            pollingInterval = setInterval(() => {
+                const status = updateStatus();
+                if (status && status.state === 1) {
+                    // Only log when playing and every 2 seconds
+                    if (Math.floor(status.time) % 2 === 0) {
+                        log(`Playing at ${formatTime(status.time)}`);
+                    }
+                }
+            }, 500);
+
+            log('Polling started successfully');
+        }
+
+        function stopPolling() {
+            if (!isPolling) {
+                log('Polling not active');
+                return;
+            }
+
+            clearInterval(pollingInterval);
+            isPolling = false;
+            document.getElementById('pollingActive').textContent = 'No';
+            log('Polling stopped');
+        }
+
+        function testMethods() {
+            if (!player) {
+                log('Player not initialized');
+                return;
+            }
+
+            log('Testing player methods...');
+            
+            const methods = [
+                'getCurrentTime',
+                'getPlayerState',
+                'getDuration',
+                'seekTo',
+                'playVideo',
+                'pauseVideo'
+            ];
+
+            methods.forEach(method => {
+                const hasMethod = typeof player[method] === 'function';
+                log(`${method}: ${hasMethod ? '✓ Available' : '✗ Not available'}`);
+                
+                if (hasMethod && ['getCurrentTime', 'getPlayerState', 'getDuration'].includes(method)) {
+                    try {
+                        const result = player[method]();
+                        log(`  → Result: ${result}`);
+                    } catch (error) {
+                        log(`  → Error: ${error.message}`);
+                    }
+                }
+            });
+        }
+
+        function onYouTubeIframeAPIReady() {
+            log('YouTube API ready, creating player...');
+            
+            player = new YT.Player('player', {
+                height: '390',
+                width: '640',
+                videoId: 'p09yRj47kNM',
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            log('Player ready!');
+            updateStatus();
+            
+            // Test methods immediately
+            setTimeout(() => {
+                testMethods();
+                
+                // Auto-start polling
+                log('Auto-starting polling in 1 second...');
+                setTimeout(startPolling, 1000);
+            }, 100);
+        }
+
+        function onPlayerStateChange(event) {
+            const stateNames = {
+                '-1': 'unstarted',
+                '0': 'ended',
+                '1': 'playing',
+                '2': 'paused',
+                '3': 'buffering',
+                '5': 'cued'
+            };
+            
+            log(`State changed to: ${stateNames[event.data] || 'unknown'} (${event.data})`);
+            updateStatus();
+        }
+
+        // Load YouTube API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+        
+        log('Loading YouTube API...');
+    </script>
+</body>
+</html>

@@ -32,7 +32,11 @@ const initialState = {
   error: null,
   
   // Memory context (what the AI remembers about this user)
-  memoryUpdates: []
+  memoryUpdates: [],
+  
+  // NEW: Content awareness state
+  currentContentContext: null,
+  globalContentContext: null
 };
 
 // Action types
@@ -60,7 +64,11 @@ const ActionTypes = {
   CLEAR_ERROR: 'CLEAR_ERROR',
   
   // Memory actions
-  UPDATE_MEMORY: 'UPDATE_MEMORY'
+  UPDATE_MEMORY: 'UPDATE_MEMORY',
+  
+  // NEW: Content awareness actions
+  SET_CONTENT_CONTEXT: 'SET_CONTENT_CONTEXT',
+  SET_GLOBAL_CONTENT_CONTEXT: 'SET_GLOBAL_CONTENT_CONTEXT'
 };
 
 // Reducer function (like your consensus algorithm but for UI state)
@@ -109,7 +117,8 @@ function appReducer(state, action) {
         conversation: [...state.conversation, {
           role: 'assistant',
           content: action.response,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          contentReference: action.contentReference // NEW: Content reference
         }],
         isTyping: false,
         learningProgress: action.progressUpdate ? {
@@ -196,6 +205,19 @@ function appReducer(state, action) {
         memoryUpdates: [...state.memoryUpdates, ...action.updates]
       };
       
+    // NEW: Content awareness cases
+    case ActionTypes.SET_CONTENT_CONTEXT:
+      return {
+        ...state,
+        currentContentContext: action.context
+      };
+      
+    case ActionTypes.SET_GLOBAL_CONTENT_CONTEXT:
+      return {
+        ...state,
+        globalContentContext: action.context
+      };
+      
     default:
       return state;
   }
@@ -223,6 +245,17 @@ export function LearningBuddyProvider({ children }) {
         dispatch({ type: ActionTypes.LOGOUT });
       });
     }
+  }, []);
+
+  // NEW: Set up global content context handler
+  useEffect(() => {
+    window.setGlobalContentContext = (context) => {
+      dispatch({ type: ActionTypes.SET_GLOBAL_CONTENT_CONTEXT, context });
+    };
+    
+    return () => {
+      delete window.setGlobalContentContext;
+    };
   }, []);
   
   // === AUTH FUNCTIONS ===
@@ -277,16 +310,21 @@ export function LearningBuddyProvider({ children }) {
     dispatch({ type: ActionTypes.LOGOUT });
   };
   
-  // === CHAT FUNCTIONS ===
+  // === ENHANCED CHAT FUNCTIONS ===
   
-  const sendMessage = async (message) => {
+  // UPDATED: sendMessage now supports content context
+  const sendMessage = async (message, contentContext = null) => {
     // Add user message immediately for responsive UI
     dispatch({ type: ActionTypes.ADD_USER_MESSAGE, message });
     
     try {
+      // Use passed contentContext or fall back to global context
+      const finalContentContext = contentContext || state.globalContentContext;
+      
       const response = await axios.post('/api/chat', {
         message,
-        moduleContext: state.currentModule
+        moduleContext: state.currentModule,
+        contentContext: finalContentContext // NEW: Include content context
       });
       
       // Add AI response and update state
@@ -294,7 +332,8 @@ export function LearningBuddyProvider({ children }) {
         type: ActionTypes.ADD_AI_RESPONSE,
         response: response.data.response,
         progressUpdate: response.data.progressUpdate,
-        memoryUpdates: response.data.memoryUpdates
+        memoryUpdates: response.data.memoryUpdates,
+        contentReference: response.data.contentAwareness // NEW: Content reference
       });
       
       // REMOVED: Intrusive memory update notifications
@@ -314,7 +353,8 @@ export function LearningBuddyProvider({ children }) {
             memoryUpdates: response.data.memoryUpdates,
             progressUpdate: response.data.progressUpdate,
             timestamp: new Date().toISOString(),
-            sessionId: state.currentSession || 'anonymous'
+            sessionId: state.currentSession || 'anonymous',
+            contentContext: finalContentContext // NEW: Include content context in research logging
           });
         } catch (logError) {
           // Fail silently - don't disrupt user experience for logging failures
@@ -340,6 +380,18 @@ export function LearningBuddyProvider({ children }) {
           dispatch({ type: ActionTypes.REMOVE_NOTIFICATION, id: notificationId });
         }, 2000);
       }
+
+      // NEW: Content-aware features
+      if (finalContentContext) {
+        console.log('🎬 Content-Aware Chat:', {
+          topic: finalContentContext.chunk?.topic,
+          timestamp: finalContentContext.timestamp,
+          suggestion: response.data.suggestion
+        });
+      }
+      
+      // Return response for handling suggestions (like timestamp jumps)
+      return response.data;
       
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to send message';
@@ -350,7 +402,18 @@ export function LearningBuddyProvider({ children }) {
         type: ActionTypes.ADD_AI_RESPONSE,
         response: "I'm sorry, I'm having trouble right now. Please try again in a moment."
       });
+      
+      return null;
     }
+  };
+  
+  // NEW: Content context management
+  const setContentContext = (context) => {
+    dispatch({ type: ActionTypes.SET_CONTENT_CONTEXT, context });
+  };
+  
+  const setGlobalContentContext = (context) => {
+    dispatch({ type: ActionTypes.SET_GLOBAL_CONTENT_CONTEXT, context });
   };
   
   // === PROGRESS FUNCTIONS ===
@@ -429,6 +492,10 @@ export function LearningBuddyProvider({ children }) {
     setCurrentView,
     addNotification,
     clearError,
+    
+    // NEW: Content awareness functions
+    setContentContext,
+    setGlobalContentContext,
     
     // Direct dispatch for advanced usage
     dispatch

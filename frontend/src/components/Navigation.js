@@ -19,6 +19,7 @@ function Navigation() {
     { id: 'chat', label: 'Chat', icon: '💬', description: 'Talk with your Learning Buddy' },
     { id: 'progress', label: 'Progress', icon: '📊', description: 'View your learning journey' },
     { id: 'modules', label: 'Modules', icon: '📚', description: 'Explore learning content' },
+    { id: 'content-demo', label: 'Content Demo', icon: '🎬', description: 'Experience content-aware AI chat' },
     { id: 'courses', label: 'Create Courses', icon: '🎓', description: 'Create and manage course content' }
   ];
 
@@ -26,7 +27,7 @@ function Navigation() {
     <nav className="navigation">
       <div className="nav-header">
         <div className="nav-logo">
-          🤖 <span>AI Learning Buddy</span>
+          🤖 <span>AI Buddy</span>
         </div>
         <div className="nav-user-info">
           <div className="user-welcome">

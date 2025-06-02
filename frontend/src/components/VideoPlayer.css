@@ -1,0 +1,314 @@
+/* VideoPlayer.css - Enhanced styling for debugging and controls */
+.video-player-container {
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.video-wrapper {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+/* YouTube Player */
+#youtube-player {
+  width: 100%;
+  height: 390px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Enhanced Status Overlay */
+.status-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 10;
+}
+
+.player-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.play-indicator {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: bold;
+}
+
+.play-indicator.playing {
+  color: #4CAF50;
+}
+
+.play-indicator.paused {
+  color: #FF9800;
+}
+
+.current-topic {
+  background: rgba(76, 175, 80, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border-left: 2px solid #4CAF50;
+  font-size: 11px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-info {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 10px;
+  color: #888;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 4px;
+  margin-top: 4px;
+}
+
+/* Manual Controls */
+.manual-controls {
+  background: #1a1a1a;
+  padding: 12px;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid #333;
+}
+
+.manual-controls button {
+  background: #333;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  transition: all 0.2s ease;
+  border: 1px solid #555;
+}
+
+.manual-controls button:hover {
+  background: #4CAF50;
+  border-color: #4CAF50;
+  transform: translateY(-1px);
+}
+
+.manual-controls button:active {
+  transform: translateY(0);
+}
+
+/* Content Context Display */
+.content-context {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 16px;
+  margin-top: 12px;
+  border-radius: 8px;
+  border-left: 4px solid #4CAF50;
+}
+
+.content-context h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #E8F5E8;
+}
+
+.content-context p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Saving indicator */
+.saving {
+  color: #4CAF50;
+  animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+/* Loading state */
+.video-player-container.loading {
+  opacity: 0.7;
+}
+
+.video-player-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  #youtube-player {
+    height: 300px;
+  }
+  
+  .status-overlay {
+    position: static;
+    margin: 8px;
+    font-size: 11px;
+  }
+  
+  .manual-controls {
+    padding: 8px;
+    gap: 6px;
+  }
+  
+  .manual-controls button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .current-topic {
+    font-size: 10px;
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  #youtube-player {
+    height: 250px;
+  }
+  
+  .status-overlay {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .manual-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .manual-controls button {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .content-context {
+    padding: 12px;
+  }
+  
+  .content-context h4 {
+    font-size: 14px;
+  }
+  
+  .content-context p {
+    font-size: 13px;
+  }
+}
+
+/* Animations */
+@keyframes pulse {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.content-context {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Focus states */
+.video-player-container:focus-within {
+  outline: 2px solid #4CAF50;
+  outline-offset: 2px;
+}
+
+.manual-controls button:focus {
+  outline: 2px solid #4CAF50;
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .status-overlay {
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid white;
+  }
+  
+  .manual-controls {
+    background: #000;
+    border-top: 2px solid white;
+  }
+  
+  .manual-controls button {
+    background: #000;
+    border: 2px solid white;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .saving {
+    animation: none;
+  }
+  
+  .content-context {
+    animation: none;
+  }
+  
+  .manual-controls button {
+    transition: none;
+  }
+  
+  .manual-controls button:hover {
+    transform: none;
+  }
+  
+  .manual-controls button:active {
+    transform: none;
+  }
+}
+
+/* Dark mode enhancements */
+@media (prefers-color-scheme: dark) {
+  .content-context {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    border-left-color: #68d391;
+  }
+  
+  .content-context h4 {
+    color: #f7fafc;
+  }
+}
+
+/* Print styles */
+@media print {
+  .manual-controls {
+    display: none;
+  }
+  
+  .status-overlay {
+    display: none;
+  }
+}

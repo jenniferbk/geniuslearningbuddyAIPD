@@ -1,3 +1,4 @@
+// App.js - Test version with ContentAwareChatDemo as default
 import React, { useEffect } from 'react';
 import { LearningBuddyProvider, useLearningBuddy } from './context/LearningBuddyContext';
 import Navigation from './components/Navigation';
@@ -46,7 +47,7 @@ function AppContent() {
     return <AuthForm />;
   }
 
-  // Render current view
+  // Render current view - CHANGED: Default to content-demo for testing
   const renderCurrentView = () => {
     switch (currentView) {
       case 'chat':
@@ -62,7 +63,8 @@ function AppContent() {
       case 'content-viewer':
         return <ContentViewer userId={isAuthenticated ? 'current-user' : null} />;
       default:
-        return <ChatInterface />;
+        // CHANGED: Default to ContentAwareChatDemo instead of ChatInterface
+        return <ContentAwareChatDemo />;
     }
   };
 
