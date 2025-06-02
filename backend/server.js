@@ -35,7 +35,7 @@ app.use(express.json());
 app.use('/api/cms/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Initialize database and services
-const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+const dbPath = path.join(__dirname, 'learning_buddy.db');
 const db = new sqlite3.Database(dbPath);
 // UPDATED: Use semantic memory service with sentence-transformers
 const memoryService = new SemanticMemoryService(dbPath);
@@ -847,7 +847,102 @@ app.use('/api/cms', authenticateToken, cmsRouter);
 // NEW: Mount video content routes
 app.use('/api/content', authenticateToken, videoContentRoutes(db));
 
-// Enhanced debug endpoint for troubleshooting
+// TEMPORARY: Debug video content retrieval step-by-step
+app.get('/api/debug/video-retrieval/:videoId/:timestamp/:userId', authenticateToken, (req, res) => {
+  const { videoId, timestamp, userId } = req.params;
+  
+  console.log('🔍 DEBUG: Starting video retrieval debug...');
+  console.log('📋 Parameters:', { videoId, timestamp, userId });
+  
+  // Step 1: Check if table exists
+  db.get(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='video_content_chunks'",
+    (err, tableRow) => {
+      if (err) {
+        return res.json({ step: 'table_check', error: err.message });
+      }
+      
+      console.log('✅ Table exists:', !!tableRow);
+      
+      if (!tableRow) {
+        return res.json({ step: 'table_check', exists: false });
+      }
+      
+      // Step 2: Run the exact query
+      const query = `
+        SELECT * FROM video_content_chunks 
+        WHERE video_id = ? AND start_time <= ? AND end_time > ?
+        ORDER BY start_time DESC
+        LIMIT 1
+      `;
+      
+      console.log('🔍 Query:', query);
+      console.log('🔍 Params:', [videoId, timestamp, timestamp]);
+      
+      db.get(query, [videoId, timestamp, timestamp], (err, chunk) => {
+        if (err) {
+          return res.json({ step: 'query', error: err.message });
+        }
+        
+        console.log('📊 Raw chunk result:', chunk);
+        
+        if (!chunk) {
+          return res.json({ 
+            step: 'query', 
+            found: false, 
+            query,
+            params: [videoId, timestamp, timestamp]
+          });
+        }
+        
+        // Step 3: Check chunk properties
+        const chunkAnalysis = {
+          id: chunk.id,
+          video_id: chunk.video_id,
+          start_time: chunk.start_time,
+          end_time: chunk.end_time,
+          content_type: typeof chunk.content,
+          content_length: chunk.content ? chunk.content.length : 0,
+          content_preview: chunk.content ? chunk.content.substring(0, 100) : 'null',
+          topic_type: typeof chunk.topic,
+          topic_value: chunk.topic,
+          keywords_type: typeof chunk.keywords,
+          keywords_value: chunk.keywords
+        };
+        
+        console.log('🔍 Chunk analysis:', chunkAnalysis);
+        
+        // Step 4: Test validation functions
+        const validateString = (value, defaultValue = '') => {
+          return (typeof value === 'string' && value.trim().length > 0) ? value.trim() : defaultValue;
+        };
+        
+        const validateNumber = (value, defaultValue = 0) => {
+          const parsed = Number(value);
+          return (!isNaN(parsed) && isFinite(parsed)) ? parsed : defaultValue;
+        };
+        
+        const validatedChunk = {
+          start_time: validateNumber(chunk.start_time, 0),
+          end_time: validateNumber(chunk.end_time, 60),
+          content: validateString(chunk.content, 'Content not available'),
+          topic: validateString(chunk.topic, 'Video Content'),
+        };
+        
+        console.log('✅ Validated chunk:', validatedChunk);
+        
+        res.json({
+          step: 'complete',
+          success: true,
+          rawChunk: chunk,
+          chunkAnalysis,
+          validatedChunk,
+          queryMatched: true
+        });
+      });
+    }
+  );
+});
 app.get('/api/debug/conversations/:userId', authenticateToken, (req, res) => {
   const { userId } = req.params;
   

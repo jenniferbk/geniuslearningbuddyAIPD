@@ -2,7 +2,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+const dbPath = path.join(__dirname, 'learning_buddy.db');
 const db = new sqlite3.Database(dbPath);
 
 // Sample video content chunks for p09yRj47kNM (Google's 9 Hour AI Prompt Engineering)

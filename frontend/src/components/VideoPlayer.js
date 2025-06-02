@@ -27,7 +27,21 @@ const VideoPlayer = memo(({
 
   // STABLE content context updater - no parent re-renders
   const updateContentContext = useCallback(async (timestamp) => {
-    if (isUpdatingRef.current || !userId || timestamp <= 0) return;
+    // Extract user ID from token if not provided as prop
+    let actualUserId = userId;
+    if (!actualUserId) {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          actualUserId = payload.userId;
+        }
+      } catch (e) {
+        console.warn('Failed to extract user ID from token:', e);
+      }
+    }
+    
+    if (isUpdatingRef.current || !actualUserId || timestamp <= 0) return;
     
     // Only update every 5 seconds to reduce API calls
     if (Math.abs(timestamp - lastUpdateTimeRef.current) < 5) return;
@@ -39,7 +53,7 @@ const VideoPlayer = memo(({
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       if (!token) return;
       
-      console.log(`🔄 STABLE content update for: ${Math.floor(timestamp)}s`);
+      console.log(`🔄 STABLE content update for: ${Math.floor(timestamp)}s, userId: ${actualUserId}`);
       
       const response = await fetch('/api/content/video-context', {
         method: 'POST',
@@ -50,7 +64,7 @@ const VideoPlayer = memo(({
         body: JSON.stringify({
           videoId: youtubeVideoId,
           timestamp: Math.floor(timestamp),
-          userId
+          userId: actualUserId
         })
       });
       
@@ -74,7 +88,7 @@ const VideoPlayer = memo(({
     } finally {
       isUpdatingRef.current = false;
     }
-  }, [youtubeVideoId, userId]); // Removed onContentContextChange from deps
+  }, [youtubeVideoId]); // Extract userId from token, so no dependency needed
 
   // STABLE time tracking
   const startStableTimeTracking = useCallback(() => {

@@ -195,14 +195,20 @@ class VideoContentService {
       // Find relevant chunk for timestamp with better error handling
       let chunk = null;
       try {
-        const chunkStmt = this.db.prepare(`
-          SELECT * FROM video_content_chunks 
-          WHERE video_id = ? AND start_time <= ? AND end_time > ?
-          ORDER BY start_time DESC
-          LIMIT 1
-        `);
-        chunk = chunkStmt.get(videoId, safeTimestamp, safeTimestamp);
-        chunkStmt.finalize();
+        // Use the same query method that works in debug endpoint
+        chunk = await new Promise((resolve, reject) => {
+          this.db.get(
+            `SELECT * FROM video_content_chunks 
+             WHERE video_id = ? AND start_time <= ? AND end_time > ?
+             ORDER BY start_time DESC
+             LIMIT 1`,
+            [videoId, safeTimestamp, safeTimestamp],
+            (err, row) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
       } catch (queryError) {
         console.error('❌ Error querying chunk:', queryError);
         throw new Error(`Database query failed: ${queryError.message}`);
@@ -214,6 +220,15 @@ class VideoContentService {
       }
       
       // FIXED: Create safe chunk with validated properties
+      console.log('🔍 RAW CHUNK from database:', {
+        id: chunk.id,
+        content_type: typeof chunk.content,
+        content_length: chunk.content?.length,
+        content_preview: chunk.content?.substring(0, 50),
+        topic_type: typeof chunk.topic,
+        topic_value: chunk.topic
+      });
+      
       const safeChunk = {
         id: chunk.id || 0,
         start_time: this.validateNumber(chunk.start_time, 0),
@@ -222,6 +237,12 @@ class VideoContentService {
         topic: this.validateString(chunk.topic, 'Video Content'),
         keywords: this.validateArray(chunk.keywords)
       };
+      
+      console.log('🔍 AFTER VALIDATION:', {
+        content_result: safeChunk.content,
+        topic_result: safeChunk.topic,
+        validation_worked: safeChunk.content !== 'Content not available'
+      });
 
       console.log(`✅ Found chunk: ${safeChunk.topic} (${safeChunk.start_time}s-${safeChunk.end_time}s)`);
       
@@ -240,21 +261,22 @@ class VideoContentService {
       // FIXED: Get surrounding chunks with comprehensive null safety
       let surroundingChunks = [];
       try {
-        const surroundingStmt = this.db.prepare(`
-          SELECT * FROM video_content_chunks
-          WHERE video_id = ? 
-          AND start_time >= ? 
-          AND start_time <= ?
-          ORDER BY start_time
-          LIMIT 3
-        `);
-        
-        const rawSurrounding = surroundingStmt.all(
-          videoId, 
-          Math.max(0, safeChunk.start_time - 60), 
-          safeChunk.end_time + 60
-        );
-        surroundingStmt.finalize();
+        // Use the same working query method
+        const rawSurrounding = await new Promise((resolve, reject) => {
+          this.db.all(
+            `SELECT * FROM video_content_chunks
+             WHERE video_id = ? 
+             AND start_time >= ? 
+             AND start_time <= ?
+             ORDER BY start_time
+             LIMIT 3`,
+            [videoId, Math.max(0, safeChunk.start_time - 60), safeChunk.end_time + 60],
+            (err, rows) => {
+              if (err) reject(err);
+              else resolve(rows);
+            }
+          );
+        });
         
         // CRITICAL FIX: Ensure we always have an array
         if (rawSurrounding === null || rawSurrounding === undefined) {
@@ -394,14 +416,19 @@ class VideoContentService {
       // Try to get user entities with error handling
       let entities = [];
       try {
-        const stmt = this.db.prepare(`
-          SELECT * FROM entities 
-          WHERE user_id = ? 
-          ORDER BY updated_at DESC 
-          LIMIT 10
-        `);
-        entities = stmt.all(userId) || [];
-        stmt.finalize();
+        entities = await new Promise((resolve, reject) => {
+          this.db.all(
+            `SELECT * FROM entities 
+             WHERE user_id = ? 
+             ORDER BY updated_at DESC 
+             LIMIT 10`,
+            [userId],
+            (err, rows) => {
+              if (err) reject(err);
+              else resolve(rows || []);
+            }
+          );
+        });
       } catch (entityError) {
         console.warn('⚠️ Error querying entities:', entityError.message);
         entities = [];
@@ -730,12 +757,17 @@ module.exports = (db) => {
     try {
       const { userId, videoId } = req.params;
       
-      const stmt = db.prepare(`
-        SELECT * FROM user_video_progress 
-        WHERE user_id = ? AND video_id = ?
-      `);
-      const progress = stmt.get(userId, videoId);
-      stmt.finalize();
+      const progress = await new Promise((resolve, reject) => {
+        db.get(
+          `SELECT * FROM user_video_progress 
+           WHERE user_id = ? AND video_id = ?`,
+          [userId, videoId],
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
       
       res.json(progress || { progress_percentage: 0, current_position: 0 });
     } catch (error) {
