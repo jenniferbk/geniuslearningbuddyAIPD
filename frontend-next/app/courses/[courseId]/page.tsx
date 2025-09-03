@@ -1,40 +1,42 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import axios from 'axios';
 
-// Simple course data for testing
-const courseData = {
-  title: "AI Literacy for Educators",
-  modules: [
-    {
-      id: "module-1", 
-      title: "Understanding AI Fundamentals",
-      order: 1,
-      lessons: [
-        {
-          id: "lesson-1-1",
-          title: "Google's AI Course for Educators",
-          type: "video",
-          contentUrl: "https://www.youtube.com/watch?v=p09yRj47kNM",
-          videoId: "p09yRj47kNM",
-          duration: "12:00",
-          description: "Google's comprehensive introduction to AI for teachers",
-          order: 1
-        },
-        {
-          id: "lesson-1-2",
-          title: "Types of AI: From Narrow to General",
-          type: "reading",
-          contentUrl: "/content/courses/ai-literacy-basics/readings/types-of-ai.md",
-          duration: "10 min read",
-          description: "Understanding different categories of AI systems",
-          order: 2
-        }
-      ]
-    }
-  ]
-};
+interface ContentItem {
+  id: string;
+  title: string;
+  type: string;
+  contentUrl?: string;
+  videoId?: string;
+  duration?: string;
+  description?: string;
+  order: number;
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  contentItems?: ContentItem[];
+}
+
+interface Module {
+  id: string; 
+  title: string;
+  description?: string;
+  order: number;
+  lessons?: Lesson[];
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description?: string;
+  modules?: Module[];
+}
 
 interface Message {
   id: string;
@@ -43,29 +45,49 @@ interface Message {
   timestamp: Date;
 }
 
-// Full course interface with video player and chat
 export default function CoursePage() {
-  const [currentLesson, setCurrentLesson] = useState<any>(null);
+  const params = useParams();
+  const courseId = params.courseId as string;
+  
+  const [course, setCourse] = useState<Course | null>(null);
+  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
+  const [currentContent, setCurrentContent] = useState<ContentItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Set first lesson as default
-    if (courseData.modules[0]?.lessons[0]) {
-      setCurrentLesson(courseData.modules[0].lessons[0]);
+    if (courseId) {
+      fetchCourse();
+    }
+  }, [courseId]);
+
+  useEffect(() => {
+    // Set first available content as default when course loads
+    if (course && course.modules && course.modules.length > 0) {
+      const firstModule = course.modules[0];
+      if (firstModule.lessons && firstModule.lessons.length > 0) {
+        const firstLesson = firstModule.lessons[0];
+        setCurrentLesson(firstLesson);
+        
+        if (firstLesson.contentItems && firstLesson.contentItems.length > 0) {
+          setCurrentContent(firstLesson.contentItems[0]);
+        }
+      }
     }
     
     // Initial greeting message
     setMessages([{
       id: 'greeting',
       role: 'assistant',
-      content: `👋 Hi! I'm your AI Learning Buddy. I'm here to help you understand AI concepts and how to apply them in your classroom. Select a lesson to get started!`,
+      content: `👋 Hi! I'm your AI Learning Buddy. I'm here to help you understand the concepts in "${course?.title || 'this course'}" and how to apply them. Select a lesson to get started!`,
       timestamp: new Date(),
     }]);
-  }, []);
+  }, [course]);
 
   // Update greeting when lesson changes
   useEffect(() => {
@@ -74,19 +96,49 @@ export default function CoursePage() {
         id: 'greeting-updated',
         role: 'assistant',
         content: `👋 Hi! I'm your AI Learning Buddy. I see you're learning about "${currentLesson.title}". ${
-          currentLesson.type === 'video' && currentLesson.videoId 
-            ? "I have the full transcript of this video, so feel free to ask about any specific part!" 
+          currentContent?.type === 'video' && currentContent?.videoId 
+            ? "I have context about this content, so feel free to ask about any specific part!" 
             : "Feel free to ask me anything about it!"
         }`,
         timestamp: new Date(),
       }]);
     }
-  }, [currentLesson]);
+  }, [currentLesson, currentContent]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const fetchCourse = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Please log in to access course content');
+      }
+      
+      const response = await axios.get(`http://localhost:3001/api/cms/courses/${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setCourse(response.data);
+    } catch (err: any) {
+      console.error('Error fetching course:', err);
+      if (err.response?.status === 404) {
+        setError('Course not found');
+      } else if (err.response?.status === 401) {
+        setError('Please log in to access this course');
+      } else {
+        setError(err.message || 'Failed to load course');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Extract YouTube video ID from URL
   const getYouTubeId = (url: string) => {
@@ -94,8 +146,19 @@ export default function CoursePage() {
     return match ? match[1] : null;
   };
 
+  const selectContent = (lesson: Lesson, contentItem?: ContentItem) => {
+    setCurrentLesson(lesson);
+    if (contentItem) {
+      setCurrentContent(contentItem);
+    } else if (lesson.contentItems && lesson.contentItems.length > 0) {
+      setCurrentContent(lesson.contentItems[0]);
+    } else {
+      setCurrentContent(null);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || chatLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -106,10 +169,9 @@ export default function CoursePage() {
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setLoading(true);
+    setChatLoading(true);
 
     try {
-      // Get the stored token
       const token = localStorage.getItem('token');
       const userId = localStorage.getItem('userId');
       
@@ -117,7 +179,6 @@ export default function CoursePage() {
         throw new Error('Not authenticated');
       }
       
-      // Check if user is authenticated
       if (!userId) {
         throw new Error('No user ID found - please login again');
       }
@@ -128,11 +189,13 @@ export default function CoursePage() {
           message: input,
           userId: userId,
           context: {
+            courseId: courseId,
             lessonId: currentLesson?.id,
             lessonTitle: currentLesson?.title,
-            lessonType: currentLesson?.type,
-            videoId: currentLesson?.videoId,
-            courseId: 'ai-literacy-basics',
+            contentId: currentContent?.id,
+            contentTitle: currentContent?.title,
+            contentType: currentContent?.type,
+            videoId: currentContent?.videoId,
           }
         },
         {
@@ -172,7 +235,7 @@ export default function CoursePage() {
       };
       setMessages(prev => [...prev, errorResponse]);
     } finally {
-      setLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -184,10 +247,65 @@ export default function CoursePage() {
   };
 
   const suggestedQuestions = [
-    "What is prompt engineering?",
-    "How can I use AI in my classroom?",
-    "Explain this concept simply"
+    "Can you explain this concept?",
+    "How can I apply this in my classroom?",
+    "What are the key takeaways?"
   ];
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading course...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <p className="text-red-600 mb-4">{error}</p>
+            <div className="space-x-4">
+              <button 
+                onClick={() => window.location.href = '/'}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                ← Back to Home
+              </button>
+              {error.includes('log in') && (
+                <button 
+                  onClick={() => window.location.href = '/auth'}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Go to Login →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Course not found</p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            ← Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -201,7 +319,7 @@ export default function CoursePage() {
             >
               ← Back to Courses
             </button>
-            <h1 className="text-xl font-semibold text-gray-900">{courseData.title}</h1>
+            <h1 className="text-xl font-semibold text-gray-900">{course.title}</h1>
           </div>
           <button
             onClick={() => setIsChatOpen(!isChatOpen)}
@@ -218,54 +336,86 @@ export default function CoursePage() {
         <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto p-4">
           <h2 className="font-semibold text-gray-900 mb-4">Course Content</h2>
           
-          {courseData.modules.map((module) => (
-            <div key={module.id} className="mb-6">
-              <h3 className="font-medium text-gray-700 mb-2">
-                Module {module.order}: {module.title}
-              </h3>
-              
-              <div className="space-y-1">
-                {module.lessons.map((lesson) => (
-                  <button
-                    key={lesson.id}
-                    onClick={() => setCurrentLesson(lesson)}
-                    className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                      currentLesson?.id === lesson.id
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'hover:bg-gray-50 text-gray-600'
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="text-sm">{lesson.title}</div>
-                      <div className="text-xs text-gray-500">{lesson.duration}</div>
-                    </div>
-                  </button>
-                ))}
+          {course.modules && course.modules.length > 0 ? (
+            course.modules.map((module) => (
+              <div key={module.id} className="mb-6">
+                <h3 className="font-medium text-gray-700 mb-2">
+                  Module {module.order}: {module.title}
+                </h3>
+                
+                {module.lessons && module.lessons.length > 0 ? (
+                  <div className="space-y-1">
+                    {module.lessons.map((lesson) => (
+                      <div key={lesson.id}>
+                        <button
+                          onClick={() => selectContent(lesson)}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                            currentLesson?.id === lesson.id
+                              ? 'bg-blue-50 text-blue-700 font-medium'
+                              : 'hover:bg-gray-50 text-gray-600'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="text-sm">{lesson.title}</div>
+                            {lesson.contentItems && lesson.contentItems.length > 0 && (
+                              <div className="text-xs text-gray-500">
+                                {lesson.contentItems.length} item{lesson.contentItems.length > 1 ? 's' : ''}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                        
+                        {/* Show content items for current lesson */}
+                        {currentLesson?.id === lesson.id && lesson.contentItems && lesson.contentItems.length > 0 && (
+                          <div className="ml-4 mt-1 space-y-1">
+                            {lesson.contentItems.map((content) => (
+                              <button
+                                key={content.id}
+                                onClick={() => setCurrentContent(content)}
+                                className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                                  currentContent?.id === content.id
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'hover:bg-gray-100 text-gray-500'
+                                }`}
+                              >
+                                {content.type === 'video' ? '🎥' : content.type === 'text' ? '📄' : '📎'} {content.title}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 ml-3">No lessons yet</p>
+                )}
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-gray-500 text-center py-8">No modules available</p>
+          )}
         </div>
 
         {/* Center - Content Viewer */}
         <div className={`flex-1 overflow-hidden ${isChatOpen ? '' : 'mr-0'}`}>
-          {currentLesson ? (
+          {currentContent ? (
             <div className="h-full flex flex-col bg-gray-50">
               {/* Content Header */}
               <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <h2 className="text-2xl font-semibold text-gray-900">{currentLesson.title}</h2>
-                <p className="text-gray-600 mt-1">{currentLesson.description}</p>
+                <h2 className="text-2xl font-semibold text-gray-900">{currentContent.title}</h2>
+                <p className="text-gray-600 mt-1">{currentContent.description || currentLesson?.description}</p>
               </div>
 
               {/* Content Area */}
               <div className="flex-1 overflow-hidden">
-                {currentLesson.type === 'video' && (
+                {currentContent.type === 'video' && (
                   <div className="w-full h-full bg-black flex items-center justify-center p-4">
                     <div className="w-full max-w-6xl" style={{ aspectRatio: '16/9' }}>
                       <iframe
                         width="100%"
                         height="100%"
-                        src={`https://www.youtube.com/embed/${currentLesson.videoId || getYouTubeId(currentLesson.contentUrl)}`}
-                        title={currentLesson.title}
+                        src={`https://www.youtube.com/embed/${currentContent.videoId || getYouTubeId(currentContent.contentUrl || '')}`}
+                        title={currentContent.title}
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
@@ -275,11 +425,35 @@ export default function CoursePage() {
                   </div>
                 )}
                 
-                {currentLesson.type === 'reading' && (
-                  <div className="p-8 bg-white">
-                    <p className="text-gray-600">Reading content will load here...</p>
+                {currentContent.type === 'text' && (
+                  <div className="p-8 bg-white overflow-y-auto h-full">
+                    <div className="prose max-w-none">
+                      <p className="text-gray-700">{currentContent.description || 'Text content will be displayed here...'}</p>
+                    </div>
                   </div>
                 )}
+
+                {currentContent.type === 'pdf' && (
+                  <div className="p-8 bg-white text-center">
+                    <p className="text-gray-600 mb-4">PDF content: {currentContent.title}</p>
+                    <p className="text-sm text-gray-500">PDF viewer will be implemented here</p>
+                  </div>
+                )}
+
+                {!['video', 'text', 'pdf'].includes(currentContent.type) && (
+                  <div className="p-8 bg-white text-center">
+                    <p className="text-gray-600">Content type: {currentContent.type}</p>
+                    <p className="text-sm text-gray-500 mt-2">Content viewer for {currentContent.type} will be implemented</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : currentLesson ? (
+            <div className="h-full flex items-center justify-center bg-white">
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-2">{currentLesson.title}</h2>
+                <p className="text-gray-600 mb-4">{currentLesson.description}</p>
+                <p className="text-gray-500">No content items available for this lesson</p>
               </div>
             </div>
           ) : (
@@ -289,7 +463,7 @@ export default function CoursePage() {
           )}
         </div>
 
-        {/* Right Panel - Working Chat */}
+        {/* Right Panel - AI Chat */}
         {isChatOpen && (
           <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
             {/* Chat Header */}
@@ -335,7 +509,7 @@ export default function CoursePage() {
                 </div>
               ))}
               
-              {loading && (
+              {chatLoading && (
                 <div className="flex justify-start">
                   <div className="bg-gray-100 rounded-lg px-4 py-2">
                     <div className="flex gap-1">
@@ -360,11 +534,11 @@ export default function CoursePage() {
                   onKeyPress={handleKeyPress}
                   placeholder="Ask me anything about the lesson..."
                   className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900"
-                  disabled={loading}
+                  disabled={chatLoading}
                 />
                 <button 
                   onClick={sendMessage}
-                  disabled={loading || !input.trim()}
+                  disabled={chatLoading || !input.trim()}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Send

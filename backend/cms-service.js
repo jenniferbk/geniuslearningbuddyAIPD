@@ -54,8 +54,11 @@ class ContentManagementService {
 
   async getCourses(creatorId = null, status = null) {
     return new Promise((resolve, reject) => {
-      let query = `SELECT c.*, u.name as creator_name FROM courses c 
-                   JOIN users u ON c.created_by = u.id`;
+      let query = `SELECT c.*, u.name as creator_name,
+                          COALESCE(COUNT(m.id), 0) as moduleCount
+                   FROM courses c 
+                   JOIN users u ON c.created_by = u.id
+                   LEFT JOIN course_modules m ON c.id = m.course_id`;
       let params = [];
 
       const conditions = [];
@@ -72,14 +75,15 @@ class ContentManagementService {
         query += ' WHERE ' + conditions.join(' AND ');
       }
 
-      query += ' ORDER BY c.updated_at DESC';
+      query += ' GROUP BY c.id ORDER BY c.updated_at DESC';
 
       this.db.all(query, params, (err, rows) => {
         if (err) reject(err);
         else {
           const courses = rows.map(row => ({
             ...row,
-            learning_objectives: JSON.parse(row.learning_objectives || '[]')
+            learning_objectives: JSON.parse(row.learning_objectives || '[]'),
+            moduleCount: row.moduleCount || 0
           }));
           resolve(courses);
         }
@@ -90,9 +94,13 @@ class ContentManagementService {
   async getCourse(courseId) {
     return new Promise((resolve, reject) => {
       this.db.get(
-        `SELECT c.*, u.name as creator_name FROM courses c 
+        `SELECT c.*, u.name as creator_name,
+                COALESCE(COUNT(m.id), 0) as moduleCount
+         FROM courses c 
          JOIN users u ON c.created_by = u.id 
-         WHERE c.id = ?`,
+         LEFT JOIN course_modules m ON c.id = m.course_id
+         WHERE c.id = ?
+         GROUP BY c.id`,
         [courseId],
         (err, row) => {
           if (err) reject(err);
@@ -100,7 +108,8 @@ class ContentManagementService {
           else {
             resolve({
               ...row,
-              learning_objectives: JSON.parse(row.learning_objectives || '[]')
+              learning_objectives: JSON.parse(row.learning_objectives || '[]'),
+              moduleCount: row.moduleCount || 0
             });
           }
         }
