@@ -65,7 +65,7 @@ done
 # Test 3: Check database tables
 echo ""
 echo "🗄️  Checking Database Tables..."
-if [ -f "ai_literacy_buddy.db" ]; then
+if [ -f "learning_buddy.db" ]; then
     TABLES=(
         "video_content_chunks:Video content chunks for RAG"
         "user_video_progress:User progress tracking"
@@ -75,14 +75,14 @@ if [ -f "ai_literacy_buddy.db" ]; then
     
     for table_info in "${TABLES[@]}"; do
         IFS=':' read -r table description <<< "$table_info"
-        if sqlite3 ai_literacy_buddy.db "SELECT name FROM sqlite_master WHERE type='table' AND name='$table';" | grep -q "$table"; then
+        if sqlite3 learning_buddy.db "SELECT name FROM sqlite_master WHERE type='table' AND name='$table';" | grep -q "$table"; then
             report_validation "$description" "PASS" "Table exists: $table"
         else
             report_validation "$description" "FAIL" "Missing table: $table"
         fi
     done
 else
-    report_validation "Database file" "FAIL" "ai_literacy_buddy.db not found"
+    report_validation "Database file" "FAIL" "learning_buddy.db not found"
 fi
 
 # Test 4: Check dependencies

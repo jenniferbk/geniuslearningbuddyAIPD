@@ -23,6 +23,15 @@ A sophisticated AI learning companion for K-12 teacher AI literacy education, in
 - **Scaffolded learning** adapted to individual comfort levels
 - **Implementation guidance** from exploration to practice
 
+### 📚 **Content Management System**
+- **Course creation dashboard** with visual management interface
+- **Multi-format content support** (videos, PDFs, text, markdown, images)
+- **Drag-drop course structure** building (courses → modules → lessons → content)
+- **Permission-based access** for content creators and educators
+- **YouTube integration** with transcript-aware AI conversations
+- **Progress tracking** and learning analytics
+- **Content-aware AI chat** that references specific video timestamps
+
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
@@ -67,10 +76,32 @@ A sophisticated AI learning companion for K-12 teacher AI literacy education, in
    npm start
    ```
 
-4. **Access the application:**
+4. **Set up CMS database (optional):**
+   ```bash
+   cd backend
+   ./setup-cms-full.sh  # One-command setup!
+   # OR manually: node setup-cms-database.js
+   ```
+   See [CMS_QUICK_SETUP.md](./CMS_QUICK_SETUP.md) for detailed setup options.
+
+5. **Access the application:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:3001
    - Health check: http://localhost:3001/api/health
+   - **CMS Dashboard: http://localhost:3000/cms** (requires creator permissions)
+
+### **Getting CMS Access**
+
+**✅ Super Simple:** All users automatically get creator permissions!
+
+1. **Register/login** at `http://localhost:3000`
+2. **Click "Content Manager"** in the navigation
+3. **Start creating courses!** 🎓
+
+*That's it! No permission setup needed.*
+
+For detailed CMS usage, see [CMS_README.md](./CMS_README.md)  
+For setup options, see [CMS_QUICK_SETUP.md](./CMS_QUICK_SETUP.md)
 
 ## 🎭 **The Primer Experience**
 

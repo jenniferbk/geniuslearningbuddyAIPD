@@ -1,0 +1,99 @@
+'use client';
+
+import { use } from 'react';
+import { useState, useEffect } from 'react';
+import CourseNav from '@/components/CourseNav';
+import ContentViewer from '@/components/ContentViewer';
+import ChatPanel from '@/components/ChatPanel';
+import courseData from '@/content/courses/ai-literacy-basics/course.json';
+
+export default function CourseLayout({
+  children,
+  params
+}: {
+  children: React.ReactNode;
+  params: Promise<{ courseId: string }>
+}) {
+  const resolvedParams = use(params);
+  const [currentLesson, setCurrentLesson] = useState<any>(null);
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [contentProgress, setContentProgress] = useState<{ 
+    timestamp?: number; 
+    page?: number; 
+    percentage?: number 
+  }>({});
+
+  useEffect(() => {
+    // Set first lesson as default
+    if (courseData.modules[0]?.lessons[0]) {
+      setCurrentLesson(courseData.modules[0].lessons[0]);
+    }
+  }, []);
+
+  const handleProgressUpdate = (progress: { timestamp?: number; page?: number; percentage?: number }) => {
+    setContentProgress(progress);
+    console.log('Content progress:', progress);
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              ← Back to Courses
+            </button>
+            <h1 className="text-xl font-semibold">{courseData.title}</h1>
+          </div>
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            {isChatOpen ? 'Hide' : 'Show'} AI Buddy 🤖
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Course Navigation */}
+        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
+          <CourseNav 
+            course={courseData}
+            currentLesson={currentLesson}
+            onLessonSelect={setCurrentLesson}
+          />
+        </div>
+
+        {/* Center - Content Viewer */}
+        <div className={`flex-1 overflow-hidden ${isChatOpen ? '' : 'mr-0'}`}>
+          {currentLesson ? (
+            <ContentViewer 
+              lesson={currentLesson}
+              onProgressUpdate={handleProgressUpdate}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-500">
+              Select a lesson to begin
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel - Chat */}
+        {isChatOpen && (
+          <div className="w-96 bg-white border-l border-gray-200">
+            <ChatPanel 
+              currentLesson={currentLesson}
+              courseId={resolvedParams.courseId}
+              contentProgress={contentProgress}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -3,7 +3,7 @@ const path = require('path');
 
 // Database setup and schema creation
 function setupDatabase() {
-  const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'learning_buddy.db');
   const db = new sqlite3.Database(dbPath);
 
   console.log('Setting up database schema...');

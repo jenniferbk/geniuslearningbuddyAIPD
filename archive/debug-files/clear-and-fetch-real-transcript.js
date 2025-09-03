@@ -5,7 +5,7 @@ const YouTubeTranscriptService = require('./backend/youtube-transcript-service')
 
 async function clearAndFetchRealTranscript() {
   const videoId = 'p09yRj47kNM';
-  const dbPath = path.join(__dirname, 'backend', 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'backend', 'learning_buddy.db');
   
   console.log('🧹 Clearing test data and fetching REAL transcript for:', videoId);
   console.log('📺 Video URL: https://www.youtube.com/watch?v=' + videoId);

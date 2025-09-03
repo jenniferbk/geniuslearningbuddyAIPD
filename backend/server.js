@@ -125,6 +125,25 @@ app.post('/api/auth/register', async (req, res) => {
             }
           );
           
+          // AUTO-GRANT CREATOR PERMISSIONS TO ALL USERS
+          db.run(
+            `INSERT INTO course_creators (id, user_id, role, permissions) 
+             VALUES (?, ?, ?, ?)`,
+            [
+              uuidv4(), 
+              userId, 
+              'creator', 
+              JSON.stringify(['create_course', 'edit_own', 'upload_content'])
+            ],
+            (creatorErr) => {
+              if (creatorErr) {
+                console.error('Failed to create creator permissions:', creatorErr);
+              } else {
+                console.log(`✅ Auto-granted creator permissions to: ${email}`);
+              }
+            }
+          );
+          
           const token = jwt.sign({ userId, email }, process.env.JWT_SECRET || 'your-secret-key');
           res.json({
             token,
@@ -991,6 +1010,7 @@ app.listen(PORT, () => {
   console.log(`🔍 Debug endpoint: http://localhost:${PORT}/api/debug/memory/YOUR_USER_ID`);
   console.log(`📝 CMS endpoint: http://localhost:${PORT}/api/cms/courses`);
   console.log(`🎥 Video content endpoint: http://localhost:${PORT}/api/content/video-context`);
+  console.log(`✅ AUTO-GRANT: All new users receive creator permissions automatically`);
   
   if (!process.env.OPENAI_API_KEY) {
     console.warn('⚠️  WARNING: OPENAI_API_KEY not configured. Please add it to your .env file.');

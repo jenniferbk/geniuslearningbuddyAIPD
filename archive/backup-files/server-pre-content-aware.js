@@ -27,7 +27,7 @@ app.use(express.json());
 app.use('/api/cms/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Initialize database and services
-const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+const dbPath = path.join(__dirname, 'learning_buddy.db');
 const db = new sqlite3.Database(dbPath);
 // UPDATED: Use semantic memory service with sentence-transformers
 const memoryService = new SemanticMemoryService(dbPath);

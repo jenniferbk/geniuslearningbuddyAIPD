@@ -20,7 +20,7 @@ required_files=(
     "cms-routes.js" 
     "setup-cms-database.js"
     "test-cms.js"
-    "ai_literacy_buddy.db"
+    "learning_buddy.db"
 )
 
 echo ""
@@ -88,11 +88,11 @@ fi
 # Check database setup
 echo ""
 echo "🗄️  Checking database:"
-if [ -f "ai_literacy_buddy.db" ]; then
+if [ -f "learning_buddy.db" ]; then
     echo "✅ Database file exists"
     
     # Try to run a simple query to check if CMS tables exist
-    if sqlite3 ai_literacy_buddy.db "SELECT name FROM sqlite_master WHERE type='table' AND name='courses';" | grep -q "courses"; then
+    if sqlite3 learning_buddy.db "SELECT name FROM sqlite_master WHERE type='table' AND name='courses';" | grep -q "courses"; then
         echo "✅ CMS tables exist"
     else
         echo "❌ CMS tables missing"

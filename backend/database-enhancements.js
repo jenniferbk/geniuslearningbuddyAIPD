@@ -3,7 +3,7 @@ const path = require('path');
 
 // Database enhancements for improved memory system performance
 function enhanceDatabase() {
-  const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'learning_buddy.db');
   const db = new sqlite3.Database(dbPath);
 
   console.log('🔧 Enhancing database for improved memory system performance...');
@@ -147,7 +147,7 @@ function enhanceDatabase() {
 
 // Research Logging Database Setup
 function setupResearchLogging() {
-  const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'learning_buddy.db');
   const db = new sqlite3.Database(dbPath);
 
   console.log('🔬 Setting up research logging tables for doctoral research...');
@@ -372,7 +372,7 @@ function assessMemoryQuality(userId, db) {
 
 // Daily analytics aggregation function
 function aggregateDailyAnalytics(userId, date) {
-  const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'learning_buddy.db');
   const db = new sqlite3.Database(dbPath);
 
   return new Promise((resolve, reject) => {
@@ -416,7 +416,7 @@ function aggregateDailyAnalytics(userId, date) {
 
 // Data migration helper for existing users
 function migrateExistingData() {
-  const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'learning_buddy.db');
   const db = new sqlite3.Database(dbPath);
 
   console.log('🔄 Migrating existing conversation data to enhanced memory format...');
