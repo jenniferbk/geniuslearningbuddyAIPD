@@ -119,17 +119,32 @@ export default function LessonContentPage() {
           videoId = match ? match[1] : '';
         }
         
-        const endpoint = isEditing 
-          ? `http://localhost:3001/api/cms/content/${editingContent.id}/text`
-          : `http://localhost:3001/api/cms/lessons/${lessonId}/content/text`;
-        
-        response = await fetch(endpoint, {
-          method: isEditing ? 'PUT' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userToken}`,
-          },
-          body: JSON.stringify({
+        if (isEditing) {
+          // For editing, use the general content endpoint without file
+          response = await fetch(`http://localhost:3001/api/cms/content/${editingContent.id}/text`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userToken}`,
+            },
+            body: JSON.stringify({
+              title: formData.title,
+              description: formData.description,
+              contentType: 'video',
+              content_type: 'video',
+              metadata: { 
+                videoId: videoId,
+                contentUrl: formData.videoUrl,
+                duration: formData.duration 
+              },
+              isRequired: formData.isRequired,
+              duration: formData.duration ? parseInt(formData.duration) : null,
+            }),
+          });
+        } else {
+          // For creating new video content, use general endpoint with FormData
+          const formDataToSend = new FormData();
+          formDataToSend.append('contentData', JSON.stringify({
             title: formData.title,
             description: formData.description,
             contentType: 'video',
@@ -140,28 +155,54 @@ export default function LessonContentPage() {
             },
             isRequired: formData.isRequired,
             duration: formData.duration ? parseInt(formData.duration) : null,
-          }),
-        });
+          }));
+          
+          response = await fetch(`http://localhost:3001/api/cms/lessons/${lessonId}/content`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${userToken}`,
+            },
+            body: formDataToSend,
+          });
+        }
       } else if (formData.content_type === 'form') {
         // Form content
-        const endpoint = isEditing 
-          ? `http://localhost:3001/api/cms/content/${editingContent.id}/text`
-          : `http://localhost:3001/api/cms/lessons/${lessonId}/content/text`;
-        
-        response = await fetch(endpoint, {
-          method: isEditing ? 'PUT' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userToken}`,
-          },
-          body: JSON.stringify({
+        if (isEditing) {
+          // For editing, use the text endpoint
+          response = await fetch(`http://localhost:3001/api/cms/content/${editingContent.id}/text`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userToken}`,
+            },
+            body: JSON.stringify({
+              title: formData.title,
+              description: formData.description,
+              contentType: 'form',
+              content_type: 'form',
+              metadata: { formUrl: formData.formUrl },
+              isRequired: formData.isRequired,
+            }),
+          });
+        } else {
+          // For creating new form content, use general endpoint with FormData
+          const formDataToSend = new FormData();
+          formDataToSend.append('contentData', JSON.stringify({
             title: formData.title,
             description: formData.description,
             contentType: 'form',
             metadata: { formUrl: formData.formUrl },
             isRequired: formData.isRequired,
-          }),
-        });
+          }));
+          
+          response = await fetch(`http://localhost:3001/api/cms/lessons/${lessonId}/content`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${userToken}`,
+            },
+            body: formDataToSend,
+          });
+        }
       } else if (formData.content_type === 'pdf') {
         // PDF file upload
         if (isEditing && !selectedFile) {

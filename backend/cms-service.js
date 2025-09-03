@@ -324,10 +324,16 @@ class ContentManagementService {
                 item.metadata.filePath = `http://localhost:3001/api/cms/files/${row.file_path}`;
               } else if (row.content_type === 'video') {
                 if (item.metadata.videoId) {
-                  item.videoId = item.metadata.videoId;
+                  item.videoId = item.metadata.videoId;  // Store at top level for compatibility
                   item.contentUrl = `https://www.youtube.com/watch?v=${item.metadata.videoId}`;
                 } else if (item.metadata.contentUrl) {
                   item.contentUrl = item.metadata.contentUrl;
+                  // Extract videoId from contentUrl if available
+                  const match = item.metadata.contentUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+                  if (match) {
+                    item.videoId = match[1];
+                    item.metadata.videoId = match[1];  // Store in metadata too
+                  }
                 }
               } else if (row.content_type === 'form') {
                 if (item.metadata.formUrl) {

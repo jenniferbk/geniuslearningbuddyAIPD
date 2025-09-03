@@ -229,7 +229,7 @@ router.post('/lessons/:lessonId/content', checkCreatorPermissions, upload.single
     const file = req.file;
     const contentData = JSON.parse(req.body.contentData || '{}');
     
-    if (!file && contentData.contentType !== 'text') {
+    if (!file && !['text', 'video', 'form'].includes(contentData.contentType)) {
       return res.status(400).json({ error: 'File required for this content type' });
     }
     
@@ -268,7 +268,7 @@ router.post('/lessons/:lessonId/content/text', checkCreatorPermissions, async (r
     
     const contentItem = await cmsService.addContentItem(lessonId, {
       ...contentData,
-      contentType: 'text'
+      contentType: contentData.contentType || contentData.content_type || 'text'  // FIXED: Use the actual content type sent from frontend
     });
     
     res.status(201).json(contentItem);
@@ -311,7 +311,7 @@ router.put('/content/:contentId/text', checkCreatorPermissions, async (req, res)
     
     const result = await cmsService.updateContentItem(contentId, {
       ...contentData,
-      content_type: contentData.contentType || 'text'
+      content_type: contentData.contentType || contentData.content_type || 'text'  // FIXED: Use the actual content type sent from frontend
     });
     
     res.json({ success: true, changes: result.changes });
