@@ -34,6 +34,34 @@ app.use(express.json());
 // Serve uploaded files statically
 app.use('/api/cms/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// NEW: Public file serving for CMS files (no auth required for viewing)
+app.get('/api/cms/files/*', (req, res) => {
+  const filePath = req.params[0]; // Gets everything after /files/
+  const fullPath = path.join(__dirname, 'uploads', filePath);
+  
+  console.log(`Serving public file: ${fullPath}`);
+  
+  // Check if file exists first
+  const fs = require('fs');
+  if (!fs.existsSync(fullPath)) {
+    console.error(`File not found: ${fullPath}`);
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Set proper headers for PDFs
+  if (fullPath.toLowerCase().endsWith('.pdf')) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+  }
+  
+  res.sendFile(path.resolve(fullPath), (err) => {
+    if (err) {
+      console.error(`Error serving file: ${err.message}`);
+      res.status(404).json({ error: 'File not found' });
+    }
+  });
+});
+
 // Initialize database and services
 const dbPath = path.join(__dirname, 'learning_buddy.db');
 const db = new sqlite3.Database(dbPath);

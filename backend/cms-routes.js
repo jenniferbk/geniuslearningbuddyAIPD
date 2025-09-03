@@ -278,16 +278,65 @@ router.post('/lessons/:lessonId/content/text', checkCreatorPermissions, async (r
   }
 });
 
-// Serve uploaded files
-router.get('/uploads/:type/:filename', (req, res) => {
-  const { type, filename } = req.params;
-  const filePath = path.join(__dirname, 'uploads', type, filename);
-  
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      res.status(404).json({ error: 'File not found' });
+// Update content item
+router.put('/content/:contentId', checkCreatorPermissions, upload.single('file'), async (req, res) => {
+  try {
+    const { contentId } = req.params;
+    const file = req.file;
+    const contentData = JSON.parse(req.body.contentData || '{}');
+    
+    const result = await cmsService.updateContentItem(contentId, {
+      title: contentData.title,
+      description: contentData.description,
+      content_type: contentData.contentType,
+      duration: contentData.duration,
+      metadata: contentData.metadata || {},
+      is_required: contentData.isRequired !== false,
+      fileName: file?.originalname,
+      fileSize: file?.size
+    }, file?.path);
+    
+    res.json({ success: true, changes: result.changes });
+  } catch (error) {
+    console.error('Update content error:', error);
+    res.status(500).json({ error: 'Failed to update content' });
+  }
+});
+
+// Update text content (no file)
+router.put('/content/:contentId/text', checkCreatorPermissions, async (req, res) => {
+  try {
+    const { contentId } = req.params;
+    const contentData = req.body;
+    
+    const result = await cmsService.updateContentItem(contentId, {
+      ...contentData,
+      content_type: contentData.contentType || 'text'
+    });
+    
+    res.json({ success: true, changes: result.changes });
+  } catch (error) {
+    console.error('Update text content error:', error);
+    res.status(500).json({ error: 'Failed to update text content' });
+  }
+});
+
+// Delete content item
+router.delete('/content/:contentId', checkCreatorPermissions, async (req, res) => {
+  try {
+    const { contentId } = req.params;
+    
+    const result = await cmsService.deleteContentItem(contentId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Content not found' });
     }
-  });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete content error:', error);
+    res.status(500).json({ error: 'Failed to delete content' });
+  }
 });
 
 // ===== ORDERING ROUTES =====
@@ -336,6 +385,48 @@ router.put('/lessons/:lessonId/content/reorder', checkCreatorPermissions, async 
   } catch (error) {
     console.error('Reorder content error:', error);
     res.status(500).json({ error: 'Failed to reorder content' });
+  }
+});
+
+// Debug endpoint to check content items and file paths
+router.get('/debug/content/:lessonId', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const content = await cmsService.getContentItems(lessonId);
+    
+    // Add file system check for each PDF content item
+    const fs = require('fs');
+    const contentWithFileCheck = await Promise.all(content.map(async (item) => {
+      if (item.content_type === 'pdf' && item.file_path) {
+        try {
+          await fs.promises.access(item.file_path);
+          const stats = await fs.promises.stat(item.file_path);
+          return {
+            ...item,
+            fileExists: true,
+            fileSize: stats.size,
+            actualPath: item.file_path
+          };
+        } catch (error) {
+          return {
+            ...item,
+            fileExists: false,
+            error: error.message,
+            actualPath: item.file_path
+          };
+        }
+      }
+      return item;
+    }));
+    
+    res.json({
+      lessonId,
+      contentCount: content.length,
+      content: contentWithFileCheck
+    });
+  } catch (error) {
+    console.error('Debug content error:', error);
+    res.status(500).json({ error: 'Debug failed' });
   }
 });
 

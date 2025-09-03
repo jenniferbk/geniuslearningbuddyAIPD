@@ -259,13 +259,28 @@ class ContentManagementService {
     // Get next order index
     const maxOrder = await this.getMaxOrder('content_items', 'lesson_id', lessonId);
     
+    // Convert absolute file path to relative path for serving
+    let relativeFilePath = null;
+    if (filePath) {
+      // Extract relative path from uploads directory
+      // filePath is like: /full/path/to/backend/uploads/pdfs/filename.pdf
+      // We want: pdfs/filename.pdf
+      const uploadsIndex = filePath.indexOf('uploads/');
+      if (uploadsIndex !== -1) {
+        relativeFilePath = filePath.substring(uploadsIndex + 8); // Skip 'uploads/'
+      } else {
+        // Fallback: use just the filename
+        relativeFilePath = path.basename(filePath);
+      }
+    }
+    
     const content = {
       id: contentId,
       lesson_id: lessonId,
       title: contentData.title,
       description: contentData.description || '',
       content_type: contentData.contentType,
-      file_path: filePath,
+      file_path: relativeFilePath, // Store relative path like 'pdfs/filename.pdf'
       file_name: contentData.fileName || null,
       file_size: contentData.fileSize || null,
       duration: contentData.duration || null,
@@ -297,10 +312,31 @@ class ContentManagementService {
         (err, rows) => {
           if (err) reject(err);
           else {
-            const content = rows.map(row => ({
-              ...row,
-              metadata: JSON.parse(row.metadata || '{}')
-            }));
+            const content = rows.map(row => {
+              const item = {
+                ...row,
+                metadata: JSON.parse(row.metadata || '{}')
+              };
+              
+              // Add proper contentUrl for different content types
+              if (row.content_type === 'pdf' && row.file_path) {
+                item.contentUrl = `http://localhost:3001/api/cms/files/${row.file_path}`;
+                item.metadata.filePath = `http://localhost:3001/api/cms/files/${row.file_path}`;
+              } else if (row.content_type === 'video') {
+                if (item.metadata.videoId) {
+                  item.videoId = item.metadata.videoId;
+                  item.contentUrl = `https://www.youtube.com/watch?v=${item.metadata.videoId}`;
+                } else if (item.metadata.contentUrl) {
+                  item.contentUrl = item.metadata.contentUrl;
+                }
+              } else if (row.content_type === 'form') {
+                if (item.metadata.formUrl) {
+                  item.contentUrl = item.metadata.formUrl;
+                }
+              }
+              
+              return item;
+            });
             resolve(content);
           }
         }
@@ -332,6 +368,104 @@ class ContentManagementService {
     } catch (error) {
       throw new Error(`Failed to get course structure: ${error.message}`);
     }
+  }
+
+  async updateContentItem(contentId, contentData, filePath = null) {
+    const allowedFields = ['title', 'description', 'content_type', 'duration', 'metadata', 'is_required'];
+    const updateFields = [];
+    const values = [];
+
+    Object.keys(contentData).forEach(key => {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = ?`);
+        if (key === 'metadata') {
+          values.push(JSON.stringify(contentData[key] || {}));
+        } else if (key === 'is_required') {
+          values.push(contentData[key] !== false);
+        } else {
+          values.push(contentData[key]);
+        }
+      }
+    });
+
+    // Add file path if provided (for file uploads)
+    if (filePath) {
+      // Convert absolute file path to relative path for serving
+      let relativeFilePath = null;
+      const uploadsIndex = filePath.indexOf('uploads/');
+      if (uploadsIndex !== -1) {
+        relativeFilePath = filePath.substring(uploadsIndex + 8); // Skip 'uploads/'
+      } else {
+        // Fallback: use just the filename
+        relativeFilePath = path.basename(filePath);
+      }
+      
+      updateFields.push('file_path = ?');
+      values.push(relativeFilePath);
+      
+      if (contentData.fileName) {
+        updateFields.push('file_name = ?');
+        values.push(contentData.fileName);
+      }
+      
+      if (contentData.fileSize) {
+        updateFields.push('file_size = ?');
+        values.push(contentData.fileSize);
+      }
+    }
+
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(contentId);
+
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE content_items SET ${updateFields.join(', ')} WHERE id = ?`,
+        values,
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+  }
+
+  async deleteContentItem(contentId) {
+    return new Promise((resolve, reject) => {
+      // First get the content item to delete any associated file
+      this.db.get(
+        'SELECT file_path FROM content_items WHERE id = ?',
+        [contentId],
+        async (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          // Delete the file if it exists
+          if (row && row.file_path) {
+            try {
+              await fs.unlink(row.file_path);
+            } catch (fileErr) {
+              console.warn('Failed to delete file:', fileErr.message);
+            }
+          }
+          
+          // Delete the database record
+          this.db.run(
+            'DELETE FROM content_items WHERE id = ?',
+            [contentId],
+            function(deleteErr) {
+              if (deleteErr) reject(deleteErr);
+              else resolve({ changes: this.changes });
+            }
+          );
+        }
+      );
+    });
   }
 
   // ===== ORDERING HELPERS =====
