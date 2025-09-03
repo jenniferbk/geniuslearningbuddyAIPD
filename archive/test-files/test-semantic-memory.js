@@ -5,7 +5,7 @@ const path = require('path');
 async function testSemanticMemory() {
   console.log('🧠 Testing Semantic Memory Service...');
   
-  const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'learning_buddy.db');
   const memoryService = new SemanticMemoryService(dbPath);
   
   // Wait for initialization

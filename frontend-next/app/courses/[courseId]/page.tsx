@@ -117,11 +117,16 @@ export default function CoursePage() {
         throw new Error('Not authenticated');
       }
       
+      // Check if user is authenticated
+      if (!userId) {
+        throw new Error('No user ID found - please login again');
+      }
+      
       const response = await axios.post(
         'http://localhost:3001/api/chat',
         {
           message: input,
-          userId: userId || 'test-user-123',
+          userId: userId,
           context: {
             lessonId: currentLesson?.id,
             lessonTitle: currentLesson?.title,

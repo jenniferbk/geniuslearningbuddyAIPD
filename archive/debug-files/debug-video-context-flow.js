@@ -131,7 +131,7 @@ async function debugVideoContextFlow() {
     console.log('🧪 To test manually in browser console:');
     console.log(`
 // Test the API call manually
-const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+const token = localStorage.getItem('token') || localStorage.getItem('token');
 console.log('Token:', token ? token.substring(0, 20) + '...' : 'NONE');
 
 fetch('/api/content/video-context', {

@@ -5,7 +5,7 @@ const YouTubeTranscriptService = require('./backend/youtube-transcript-service')
 
 async function fixTranscriptChunking() {
   const videoId = 'p09yRj47kNM';
-  const dbPath = path.join(__dirname, 'backend', 'ai_literacy_buddy.db');
+  const dbPath = path.join(__dirname, 'backend', 'learning_buddy.db');
   
   console.log('🔧 Fixing transcript chunking for optimal content coverage');
   console.log('🎯 Goal: 156 segments → 12-15 optimal chunks with proper coverage\n');

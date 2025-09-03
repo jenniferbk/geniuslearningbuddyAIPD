@@ -21,10 +21,10 @@ const VideoPlayer = ({
   // Update content context - THIS IS KEY!
   const updateContentContext = useCallback(async (timestamp) => {
     try {
-      // Enhanced token debugging - FIXED: Look for 'authToken' not 'token'
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      // Enhanced token debugging - FIXED: Look for 'token' not 'token'
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       console.log('🔍 Token debugging:', {
-        hasAuthToken: !!localStorage.getItem('authToken'),
+        hasAuthToken: !!localStorage.getItem('token'),
         hasToken: !!localStorage.getItem('token'),
         tokenLength: token?.length || 0,
         tokenPreview: token ? token.substring(0, 20) + '...' : 'null',
@@ -104,7 +104,7 @@ const VideoPlayer = ({
     
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       const currentPos = playerRef.current.getCurrentTime();
       const videoDuration = playerRef.current.getDuration();
       

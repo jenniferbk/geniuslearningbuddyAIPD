@@ -24,7 +24,7 @@ export default function AppLayout({ children, requireAuth = false }: AppLayoutPr
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const userIdStr = localStorage.getItem('userId');
       const userName = localStorage.getItem('userName');
       const userEmail = localStorage.getItem('userEmail');
@@ -37,13 +37,13 @@ export default function AppLayout({ children, requireAuth = false }: AppLayoutPr
         });
       } else if (requireAuth) {
         // Redirect to login if auth is required but user is not logged in
-        window.location.href = '/auth/login';
+        window.location.href = '/auth';
         return;
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
       if (requireAuth) {
-        window.location.href = '/auth/login';
+        window.location.href = '/auth';
       }
     } finally {
       setLoading(false);
@@ -51,12 +51,12 @@ export default function AppLayout({ children, requireAuth = false }: AppLayoutPr
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
     setCurrentUser(null);
-    window.location.href = '/auth/login';
+    window.location.href = '/auth';
   };
 
   if (loading && requireAuth) {

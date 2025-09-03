@@ -22,7 +22,7 @@ const VideoPlayer = ({
     if (!userId || timestamp <= 0) return;
     
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       if (!token) return;
       
       console.log(`🔄 Fetching content for: ${Math.floor(timestamp)}s`);

@@ -20,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize database and services
-const dbPath = path.join(__dirname, 'ai_literacy_buddy.db');
+const dbPath = path.join(__dirname, 'learning_buddy.db');
 const db = new sqlite3.Database(dbPath);
 const memoryService = new MemoryService(dbPath);
 

@@ -147,5 +147,5 @@ The dashboard integrates with these backend endpoints:
 
 ### Navigation Issues
 - Ensure user is logged in
-- Check localStorage for `authToken`, `userId`, `userName`, `userEmail`
+- Check localStorage for `Token`, `userId`, `userName`, `userEmail`
 - Verify JWT token hasn't expired

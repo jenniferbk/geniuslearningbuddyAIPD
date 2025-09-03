@@ -97,9 +97,9 @@ echo "----------------------------------"
 
 cd ../frontend-next
 
-# Check for any remaining authToken or /auth/login references
+# Check for any remaining token or /auth/login references
 echo "Checking for old auth references..."
-grep -r "authToken" --include="*.tsx" --include="*.ts" . 2>/dev/null | head -5
+grep -r "token" --include="*.tsx" --include="*.ts" . 2>/dev/null | head -5
 grep -r "/auth/login" --include="*.tsx" --include="*.ts" . 2>/dev/null | head -5
 
 if [ $? -eq 0 ]; then

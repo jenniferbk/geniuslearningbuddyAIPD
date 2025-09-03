@@ -26,7 +26,7 @@ export default function AppNavigation({ currentUser, onLogout }: AppNavigationPr
 
   const checkCreatorPermissions = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       if (!token) return;
 
       const response = await fetch('http://localhost:3001/api/cms/courses', {

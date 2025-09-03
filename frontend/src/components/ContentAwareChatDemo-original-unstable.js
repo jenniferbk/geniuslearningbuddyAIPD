@@ -52,7 +52,7 @@ const ContentAwareChatDemo = () => {
 
   const checkTranscriptStatus = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/content/transcript-status/${sampleContent.youtube_id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -85,7 +85,7 @@ const ContentAwareChatDemo = () => {
     setTranscriptMessage('Fetching YouTube transcript...');
     
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/content/fetch-transcript', {
         method: 'POST',
         headers: { 
@@ -122,7 +122,7 @@ const ContentAwareChatDemo = () => {
     setTranscriptStatus('loading');
     setTranscriptMessage('Loading sample data...');
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/debug/populate-video/${sampleContent.youtube_id}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }

@@ -37,8 +37,9 @@ export default function AuthPage() {
 
       // Store the token and user info
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('userId', response.data.userId);
-      localStorage.setItem('userName', response.data.name || formData.name);
+      localStorage.setItem('userId', response.data.user.id);
+      localStorage.setItem('userName', response.data.user.name || formData.name);
+      localStorage.setItem('userEmail', response.data.user.email);
       
       // Redirect to the course
       router.push('/courses/ai-literacy-basics');

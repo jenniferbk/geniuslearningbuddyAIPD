@@ -14,7 +14,7 @@ const TEST_USER = {
   techComfort: 'medium'
 };
 
-let authToken = null;
+let token = null;
 
 async function testCMS() {
   console.log('🧪 Testing AI Learning Buddy CMS...\n');
@@ -29,7 +29,7 @@ async function testCMS() {
     console.log('\n2. Testing authentication...');
     try {
       const registerResponse = await axios.post(`${BASE_URL}/api/auth/register`, TEST_USER);
-      authToken = registerResponse.data.token;
+      token = registerResponse.data.token;
       console.log('✅ User registered successfully');
     } catch (error) {
       if (error.response?.status === 400) {
@@ -38,7 +38,7 @@ async function testCMS() {
           email: TEST_USER.email,
           password: TEST_USER.password
         });
-        authToken = loginResponse.data.token;
+        token = loginResponse.data.token;
         console.log('✅ User logged in successfully');
       } else {
         throw error;
@@ -46,7 +46,7 @@ async function testCMS() {
     }
 
     // Set auth header for subsequent requests
-    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
     // 3. Test CMS endpoints
     console.log('\n3. Testing CMS functionality...');

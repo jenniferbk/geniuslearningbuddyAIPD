@@ -9,7 +9,7 @@ const initialState = {
   // User authentication
   user: null,
   isAuthenticated: false,
-  authToken: localStorage.getItem('authToken'),
+  token: localStorage.getItem('token'),
   
   // Current conversation
   conversation: [],
@@ -75,20 +75,20 @@ const ActionTypes = {
 function appReducer(state, action) {
   switch (action.type) {
     case ActionTypes.LOGIN_SUCCESS:
-      localStorage.setItem('authToken', action.token);
+      localStorage.setItem('token', action.token);
       return {
         ...state,
         user: action.user,
         isAuthenticated: true,
-        authToken: action.token,
+        token: action.token,
         error: null
       };
       
     case ActionTypes.LOGOUT:
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
       return {
         ...initialState,
-        authToken: null,
+        token: null,
         isAuthenticated: false
       };
       
@@ -229,16 +229,16 @@ export function LearningBuddyProvider({ children }) {
   
   // Set up axios defaults
   useEffect(() => {
-    if (state.authToken) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${state.authToken}`;
+    if (state.token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
     } else {
       delete axios.defaults.headers.common['Authorization'];
     }
-  }, [state.authToken]);
+  }, [state.token]);
   
   // Auto-login if token exists
   useEffect(() => {
-    if (state.authToken && !state.isAuthenticated) {
+    if (state.token && !state.isAuthenticated) {
       // Verify token is still valid
       fetchUserProgress().catch(() => {
         // Token invalid, logout

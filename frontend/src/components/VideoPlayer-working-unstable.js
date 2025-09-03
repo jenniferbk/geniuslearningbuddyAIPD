@@ -31,7 +31,7 @@ const VideoPlayer = ({
     lastUpdateTimeRef.current = timestamp;
     
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       if (!token) return;
       
       console.log(`🔄 Safe content update for: ${Math.floor(timestamp)}s`);

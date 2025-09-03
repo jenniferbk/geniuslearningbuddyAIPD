@@ -31,7 +31,7 @@ const VideoPlayer = memo(({
     let actualUserId = userId;
     if (!actualUserId) {
       try {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('token');
         if (token) {
           const payload = JSON.parse(atob(token.split('.')[1]));
           actualUserId = payload.userId;
@@ -50,7 +50,7 @@ const VideoPlayer = memo(({
     lastUpdateTimeRef.current = timestamp;
     
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       if (!token) return;
       
       console.log(`🔄 STABLE content update for: ${Math.floor(timestamp)}s, userId: ${actualUserId}`);

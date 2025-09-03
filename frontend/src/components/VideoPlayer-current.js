@@ -21,7 +21,7 @@ const VideoPlayer = ({
   // Update content context
   const updateContentContext = useCallback(async (timestamp) => {
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       
       if (!token || !userId) {
         console.warn('⚠️ Missing auth token or userId');
@@ -63,7 +63,7 @@ const VideoPlayer = ({
     
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token') || localStorage.getItem('token');
       const currentPos = playerRef.current.getCurrentTime();
       const videoDuration = playerRef.current.getDuration();
       
