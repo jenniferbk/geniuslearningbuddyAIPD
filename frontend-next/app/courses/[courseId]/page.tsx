@@ -3,15 +3,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 interface ContentItem {
   id: string;
   title: string;
-  type: string;
+  content_type: string;
   contentUrl?: string;
   videoId?: string;
   duration?: string;
   description?: string;
+  metadata?: any;
   order: number;
 }
 
@@ -96,7 +98,7 @@ export default function CoursePage() {
         id: 'greeting-updated',
         role: 'assistant',
         content: `👋 Hi! I'm your AI Learning Buddy. I see you're learning about "${currentLesson.title}". ${
-          currentContent?.type === 'video' && currentContent?.videoId 
+          currentContent?.content_type === 'video' && (currentContent?.videoId || currentContent?.metadata?.videoId) 
             ? "I have context about this content, so feel free to ask about any specific part!" 
             : "Feel free to ask me anything about it!"
         }`,
@@ -144,6 +146,17 @@ export default function CoursePage() {
   const getYouTubeId = (url: string) => {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
     return match ? match[1] : null;
+  };
+
+  // Helper function to get content icon based on type
+  const getContentIcon = (contentType: string) => {
+    switch (contentType) {
+      case 'video': return '🎥';
+      case 'text': return '📄';
+      case 'pdf': return '📄';
+      case 'form': return '📝';
+      default: return '📎';
+    }
   };
 
   const selectContent = (lesson: Lesson, contentItem?: ContentItem) => {
@@ -194,8 +207,8 @@ export default function CoursePage() {
             lessonTitle: currentLesson?.title,
             contentId: currentContent?.id,
             contentTitle: currentContent?.title,
-            contentType: currentContent?.type,
-            videoId: currentContent?.videoId,
+            contentType: currentContent?.content_type,
+            videoId: currentContent?.videoId || currentContent?.metadata?.videoId,
           }
         },
         {
@@ -378,7 +391,7 @@ export default function CoursePage() {
                                     : 'hover:bg-gray-100 text-gray-500'
                                 }`}
                               >
-                                {content.type === 'video' ? '🎥' : content.type === 'text' ? '📄' : '📎'} {content.title}
+                              {getContentIcon(content.content_type)} {content.title}
                               </button>
                             ))}
                           </div>
@@ -408,42 +421,102 @@ export default function CoursePage() {
 
               {/* Content Area */}
               <div className="flex-1 overflow-hidden">
-                {currentContent.type === 'video' && (
+                {currentContent?.content_type === 'video' && (
                   <div className="w-full h-full bg-black flex items-center justify-center p-4">
                     <div className="w-full max-w-6xl" style={{ aspectRatio: '16/9' }}>
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        src={`https://www.youtube.com/embed/${currentContent.videoId || getYouTubeId(currentContent.contentUrl || '')}`}
-                        title={currentContent.title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="w-full h-full"
-                      />
+                      {(currentContent.metadata?.videoId || currentContent.videoId) ? (
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={`https://www.youtube.com/embed/${currentContent.metadata?.videoId || currentContent.videoId}`}
+                          title={currentContent.title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full"
+                        />
+                      ) : currentContent.contentUrl ? (
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          src={`https://www.youtube.com/embed/${getYouTubeId(currentContent.contentUrl)}`}
+                          title={currentContent.title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-white">
+                          <p>Video not available</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
                 
-                {currentContent.type === 'text' && (
+                {currentContent?.content_type === 'text' && (
                   <div className="p-8 bg-white overflow-y-auto h-full">
-                    <div className="prose max-w-none">
-                      <p className="text-gray-700">{currentContent.description || 'Text content will be displayed here...'}</p>
+                    <div className="prose prose-slate max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900">
+                      {currentContent.metadata?.content ? (
+                        <ReactMarkdown>{currentContent.metadata.content}</ReactMarkdown>
+                      ) : currentContent.description ? (
+                        <ReactMarkdown>{currentContent.description}</ReactMarkdown>
+                      ) : (
+                        <p className="text-gray-500">No content available</p>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {currentContent.type === 'pdf' && (
-                  <div className="p-8 bg-white text-center">
-                    <p className="text-gray-600 mb-4">PDF content: {currentContent.title}</p>
-                    <p className="text-sm text-gray-500">PDF viewer will be implemented here</p>
+                {currentContent?.content_type === 'pdf' && (
+                  <div className="w-full h-full">
+                    {currentContent.metadata?.filePath || currentContent.contentUrl ? (
+                      <iframe
+                        src={currentContent.metadata?.filePath || currentContent.contentUrl}
+                        title={currentContent.title}
+                        className="w-full h-full border-0"
+                      />
+                    ) : (
+                      <div className="p-8 bg-white text-center h-full flex items-center justify-center">
+                        <div>
+                          <p className="text-gray-600 mb-4">PDF: {currentContent.title}</p>
+                          <p className="text-sm text-gray-500">PDF file not available</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {!['video', 'text', 'pdf'].includes(currentContent.type) && (
-                  <div className="p-8 bg-white text-center">
-                    <p className="text-gray-600">Content type: {currentContent.type}</p>
-                    <p className="text-sm text-gray-500 mt-2">Content viewer for {currentContent.type} will be implemented</p>
+                {currentContent?.content_type === 'form' && (
+                  <div className="w-full h-full">
+                    {currentContent.metadata?.formUrl ? (
+                      <iframe
+                        src={currentContent.metadata.formUrl}
+                        title={currentContent.title}
+                        className="w-full h-full border-0"
+                        allow="fullscreen"
+                      />
+                    ) : (
+                      <div className="p-8 bg-white text-center h-full flex items-center justify-center">
+                        <div>
+                          <p className="text-gray-600 mb-4">Form: {currentContent.title}</p>
+                          <p className="text-sm text-gray-500">Form URL not configured</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {currentContent && !['video', 'text', 'pdf', 'form'].includes(currentContent.content_type) && (
+                  <div className="p-8 bg-white text-center h-full flex items-center justify-center">
+                    <div>
+                      <p className="text-gray-600 mb-2">Content type: {currentContent.content_type}</p>
+                      <p className="text-sm text-gray-500">Content viewer for {currentContent.content_type} will be implemented</p>
+                      {currentContent.description && (
+                        <p className="text-sm text-gray-600 mt-4 max-w-md">{currentContent.description}</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
